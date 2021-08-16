@@ -1,45 +1,24 @@
 #pragma once
 #include <vector>
 #include <algorithm>
+#include <SFML/Graphics/VertexArray.hpp>
 #include "geometry.h"
+#include "types.h"
 
 class world
 {
-	struct edge
-	{
-		vec2 begin = { 0.f, 0.f };
-		vec2 end = { 0.f, 0.f };
-	};
-
-	struct tile
-	{
-		bool solid = false;
-		bool edge_exist[4] = { false };
-		int edge_id[4] = { 0 };
-	};
-
-	struct ray
-	{
-		vec2 pos = { 0.f, 0.f };
-		float angle = 0.f;
-	};
-
-	enum sides
-	{
-		N = 0,
-		E = 1,
-		S = 2,
-		W = 3
-	};
-
 	std::vector<tile*> _grid;
 	std::vector<edge*> _map;
 	std::vector<ray*> _rays;
+
+	source _source;
 
 	uint32_t _width;
 	uint32_t _height;
 	uint32_t _size;
 	uint32_t _dim;
+
+	bool in_bounds(int x, int y) const;
 
 	tile*& get(uint32_t x, uint32_t y);
 	tile* get(uint32_t x, uint32_t y) const;
@@ -52,12 +31,25 @@ class world
 	std::vector<tile*> get_neighbors(uint32_t x, uint32_t y);
 	void handle_edge(uint32_t x, uint32_t y, sides side, tile* neighbor, tile* borrow_from);
 
-	void apply_geometry();
-	void cast_rays(const vec2& source);
+	void convert_to_geometry();
+	void line_of_sight();
 
 public:
 	world(uint32_t width, uint32_t height, uint32_t dimension);
 	~world();
 
+	uint32_t width() const;
+	uint32_t height() const;
+	uint32_t dim() const;
 
+	sf::VertexArray get_map() const;
+
+	bool tile_solid(uint32_t x, uint32_t y) const;
+	void toggle_tile(uint32_t x, uint32_t y);
+
+	vec2f get_source_pos() const;
+	float get_source_rad() const;
+	void move_source(const vec2f& dir, float elapsed);
+
+	vec2f ray_cast_dda(const vec2f& dest) const;
 };

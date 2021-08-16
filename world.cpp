@@ -1,11 +1,16 @@
 #include "world.h"
 
-world::tile*& world::get(uint32_t x, uint32_t y)
+bool world::in_bounds(int x, int y) const
+{
+	return x > -1 && x < _width && y > -1 && y < _height;
+}
+
+tile*& world::get(uint32_t x, uint32_t y)
 {
 	return _grid[y * _width + x];
 }
 
-world::tile* world::get(uint32_t x, uint32_t y) const
+tile* world::get(uint32_t x, uint32_t y) const
 {
 	return _grid[y * _width + x];
 }
@@ -43,7 +48,7 @@ void world::clear_edge_data()
 	}
 }
 
-std::vector<world::tile*> world::get_neighbors(uint32_t x, uint32_t y)
+std::vector<tile*> world::get_neighbors(uint32_t x, uint32_t y)
 {
 	std::vector<tile*> neighbors(4);
 	neighbors[N] = get(x, y - 1);
@@ -72,9 +77,26 @@ void world::handle_edge(uint32_t x, uint32_t y, sides side, tile* neighbor, tile
 		}
 		else
 		{
-			auto edge = new world::edge;
-			edge->begin = vec2(x * _dim, y * _dim);
-			edge->end = edge->begin + vec2(_dim, _dim);
+			auto edge = new ::edge;
+			switch (side)
+			{
+			case N:
+				edge->begin = vec2f(x * _dim, y * _dim);
+				edge->end = edge->begin + vec2f(_dim, 0.f);
+				break;
+			case E:
+				edge->begin = vec2f((x + 1) * _dim, y * _dim);
+				edge->end = edge->begin + vec2f(0.f, _dim);
+				break;
+			case S:
+				edge->begin = vec2f(x * _dim, (y + 1) * _dim);
+				edge->end = edge->begin + vec2f(_dim, 0.f);
+				break;
+			case W:
+				edge->begin = vec2f(x * _dim, y * _dim);
+				edge->end = edge->begin + vec2f(0.f, _dim);
+				break;
+			}
 
 			int id = _map.size();
 			_map.push_back(edge);
@@ -85,18 +107,17 @@ void world::handle_edge(uint32_t x, uint32_t y, sides side, tile* neighbor, tile
 	}
 }
 
-//convert tilegrid to edgemap
-void world::apply_geometry()
+//from tilegrid to edgemap
+void world::convert_to_geometry()
 {
 	free_map();
 	clear_edge_data();
 
-	for (int y = 0; y < _height; y++)
+	for (int y = 1; y < _height - 1; y++)
 	{
-		for (int x = 0; x < _width; x++)
+		for (int x = 1; x < _width - 1; x++)
 		{
-			auto tile = get(x, y);
-			if (!tile->solid)
+			if (!get(x, y)->solid)
 				continue;
 
 			auto neighbors = get_neighbors(x, y);
@@ -108,23 +129,37 @@ void world::apply_geometry()
 	}
 }
 
-//construct visibility polygon
-void world::cast_rays(const vec2& source)
+//shadow casting
+void world::line_of_sight()
 {
 
 }
 
 //public interface
 world::world(uint32_t width, uint32_t height, uint32_t dimension)
-	: _width(width), _height(height), _size(width * height), _dim(dimension)
+	: _width(width), _height(height), _dim(dimension)
 {
+	_size = _width * _height;
 	_grid = std::vector<tile*>(_size);
+
 	for (auto& t : _grid)
 		t = new tile;
-	for (int x = 0; x < _width; x++)
-		get(x, 0)->solid = get(x, _height - 1)->solid = true;
-	for (int y = 0; y < _height; y++)
-		get(0, y)->solid =  get(_width - 1, y)->solid = true;
+
+	for (int x = 1; x < _width - 1; x++)
+		get(x, 1)->solid = get(x, _height - 2)->solid = true;
+	for (int y = 1; y < _height - 1; y++)
+		get(1, y)->solid =  get(_width - 2, y)->solid = true;
+
+	convert_to_geometry();
+
+	_source =
+	{
+		vec2f(2.1f * _dim, 2.1f * _dim),
+		_dim / 6.f,
+		(float)(_dim * _width),
+		3840.f,
+		0.f
+	};
 }
 
 world::~world()
@@ -132,4 +167,102 @@ world::~world()
 	free_grid();
 	free_map();
 	free_rays();
+}
+
+uint32_t world::width() const
+{
+	return _width;
+}
+
+uint32_t world::height() const
+{
+	return _height;
+}
+
+uint32_t world::dim() const
+{
+	return _dim;
+}
+
+bool world::tile_solid(uint32_t x, uint32_t y) const
+{
+	return get(x, y)->solid;
+}
+
+void world::toggle_tile(uint32_t x, uint32_t y)
+{
+	get(x, y)->solid ^= true;
+	convert_to_geometry();
+}
+
+sf::VertexArray world::get_map() const
+{
+	sf::VertexArray edges(sf::Lines);
+	for (auto edge : _map)
+	{
+		edges.append(sf::Vertex(edge->begin, sf::Color::White));
+		edges.append(sf::Vertex(edge->end, sf::Color::White));
+	}
+	return edges;
+}
+
+vec2f world::get_source_pos() const
+{
+	return _source.pos;
+}
+
+float world::get_source_rad() const
+{
+	return _source.radius;
+}
+
+void world::move_source(const vec2f& dir, float elapsed)
+{
+	_source.move(dir, elapsed);
+	auto pos = vec2u(_source.pos) / _dim;
+	if (get(pos.x, pos.y)->solid)
+		_source.move(-dir, elapsed);
+}
+
+//cast a ray from source to destination
+vec2f world::ray_cast_dda(const vec2f& dest) const
+{
+	auto start = _source.pos;
+	auto dir = norm(dest - start);
+	auto ray_unit = vec2f(sqrt(1 + (dir.y / dir.x) * (dir.y / dir.x)), sqrt(1 + (dir.x / dir.y) * (dir.x / dir.y)));
+	auto pos = vec2u(_source.pos) / _dim;
+	vec2f ray_len;
+	vec2i step;
+
+	if (dir.x < 0.f)
+		step.x = -1,
+		ray_len.x = (start.x - pos.x) * ray_unit.x;
+	else
+		step.x = 1,
+		ray_len.x = (pos.x + 1 - start.x) * ray_unit.x;
+
+	if (dir.y < 0.f)
+		step.y = -1,
+		ray_len.y = (start.y - pos.y) * ray_unit.y;
+	else
+		step.y = 1,
+		ray_len.y = (pos.y + 1 - start.y) * ray_unit.y;
+
+	bool intersect = false;
+	float dist = 0.0f;
+	while (!intersect && dist < _source.range)
+	{
+		if (ray_len.x < ray_len.y)
+			pos.x += step.x,
+			dist = ray_len.x,
+			ray_len.x += ray_unit.x;
+		else
+			pos.y += step.y,
+			dist = ray_len.y,
+			ray_len.y += ray_unit.y;
+
+		intersect = in_bounds(pos.x, pos.y) && get(pos.x, pos.y)->solid;
+	}
+
+	return start + dir * dist;
 }
