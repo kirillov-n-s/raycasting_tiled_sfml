@@ -3,8 +3,25 @@
 void application::draw(uint32_t x, uint32_t y)
 {
 	_tile.setPosition(vec2f(x * _tile_dim, y * _tile_dim));
-	_tile.setFillColor(_world->tile_solid(x, y) ? sf::Color::Blue : sf::Color::Black);
+
+	if (_world->tile_solid(x, y))
+	{
+		_tile.setFillColor(sf::Color::Blue);
+		_tile.setOutlineColor(sf::Color::White);
+	}
+	else
+	{
+		_tile.setFillColor(sf::Color::Black);
+		_tile.setOutlineColor(sf::Color(16, 16, 16));
+	}
+
 	_window->draw(_tile);
+}
+
+vec2f application::get_rad_vec(const sf::CircleShape& circle) const
+{
+	auto rad = circle.getRadius();
+	return vec2f(rad, rad);
 }
 
 void application::handle_events(float elapsed)
@@ -29,31 +46,44 @@ void application::handle_events(float elapsed)
 			switch (event.key.code)
 			{
 			case sf::Keyboard::W:
-				_world->move_source(vec2f(0.f, -1.f), elapsed);
+				_world->move_source(DIRS[N], elapsed);
 				break;
 			case sf::Keyboard::A:
-				_world->move_source(vec2f(-1.f, 0.f), elapsed);
+				_world->move_source(DIRS[W], elapsed);
 				break;
 			case sf::Keyboard::S:
-				_world->move_source(vec2f(0.f, 1.f), elapsed);
+				_world->move_source(DIRS[S], elapsed);
 				break;
 			case sf::Keyboard::D:
-				_world->move_source(vec2f(1.f, 0.f), elapsed);
+				_world->move_source(DIRS[E], elapsed);
 				break;
+
+			case sf::Keyboard::C:
+				_world->clear();
+				break;
+			case sf::Keyboard::Q:
+				_trace_around ^= true;
+				break;
+			/*case sf::Keyboard::Space:
+				_trace_light ^= true;
+				break;*/
 			}
 
-		if (event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Right)
+		if (event.type == sf::Event::MouseButtonReleased)
 		{
-			auto mouse = vec2u(sf::Mouse::getPosition(*_window)) / _tile_dim;
-			if (mouse.x < 1 || mouse.y < 1 || mouse.x > _world->width() - 2 || mouse.y > _world->height() - 2)
-				continue;
-			_world->toggle_tile(mouse.x, mouse.y);
-		}
-
-		if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left)
-		{
-			auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-			_dest.setPosition(_world->ray_cast_dda(mouse));
+			vec2u mouse;
+			switch (event.mouseButton.button)
+			{
+			case sf::Mouse::Left:
+				mouse = vec2u(sf::Mouse::getPosition(*_window)) / _tile_dim;
+				if (mouse.x < 1 || mouse.y < 1 || mouse.x > _world->width() - 2 || mouse.y > _world->height() - 2)
+					continue;
+				_world->toggle_tile(mouse.x, mouse.y);
+				break;
+			case sf::Mouse::Right:
+				_trace_mouse ^= true;
+				break;
+			}
 		}
 	}
 }
@@ -70,12 +100,52 @@ void application::render()
 		for (int y = 0; y < _world->height(); y++)
 			draw(x, y);
 
-	_window->draw(_world->get_map());
+	auto corners = _world->get_corners();
+	for (const auto& corner : corners)
+	{
+		_corner.setPosition(corner - get_rad_vec(_corner));
+		_window->draw(_corner);
+	}
 
-	_source.setPosition(_world->get_source_pos());
+	auto src = _world->get_source_pos();
+
+	if (_trace_mouse)
+	{
+		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
+		auto dest = _world->ray_cast_dda(mouse - src);
+
+		sf::VertexArray line(sf::Lines);
+		line.append(sf::Vertex(src, sf::Color::Yellow));
+		line.append(sf::Vertex(dest, sf::Color::Yellow));
+		_window->draw(line);
+
+		_inter.setPosition(dest - get_rad_vec(_inter));
+		_window->draw(_inter);
+	}
+
+	if (_trace_around)
+	{
+		for (const auto& dir : DIRS)
+		{
+			auto dest = _world->ray_cast_dda(dir);
+
+			sf::VertexArray line(sf::Lines);
+			line.append(sf::Vertex(src, sf::Color::Red));
+			line.append(sf::Vertex(dest, sf::Color::Red));
+			_window->draw(line);
+
+			_inter.setPosition(dest - get_rad_vec(_inter));
+			_window->draw(_inter);
+		}
+	}
+
+	/*if (_trace_light)
+	{
+
+	}*/
+
+	_source.setPosition(src - vec2f(_source.getRadius(), _world->get_source_rad()));
 	_window->draw(_source);
-
-	_window->draw(_dest);
 
 	_window->display();
 }
@@ -85,17 +155,23 @@ application::application(world* world, const std::string& title)
 {
 	_tile_dim = _world->dim();
 	_tile = sf::RectangleShape(vec2f(_tile_dim, _tile_dim));
+	_tile.setOutlineThickness(-2.f);
 
-	_source = sf::CircleShape(_world->get_source_rad(), 6);
-	_source.setFillColor(sf::Color::Magenta);
+	auto rad = _world->get_source_rad();
+	_source = sf::CircleShape(rad, 6);
+	_source.setFillColor(sf::Color::Transparent);
+	_source.setOutlineColor(sf::Color::Magenta);
+	_source.setOutlineThickness(-2.f);
 
-	_dest = sf::CircleShape(_world->get_source_rad(), 3);
-	_dest.setFillColor(sf::Color::Cyan);
-
-	_inter = sf::CircleShape(_world->get_source_rad());
+	_inter = sf::CircleShape(rad / 2.f);
 	_inter.setFillColor(sf::Color::Transparent);
-	_inter.setOutlineColor(sf::Color::Yellow);
-	_inter.setOutlineThickness(2.f);
+	_inter.setOutlineColor(sf::Color::Green);
+	_inter.setOutlineThickness(-2.f);
+
+	_corner = sf::CircleShape(rad / 4.f);
+	_corner.setFillColor(sf::Color::White);
+	/*_corner.setOutlineColor(sf::Color::Cyan);
+	_corner.setOutlineThickness(-2.f);*/
 
 	_window = new sf::RenderWindow(sf::VideoMode(_world->width() * _tile_dim, _world->height() * _tile_dim), _title);
 	_window->setVerticalSyncEnabled(true);
@@ -117,7 +193,6 @@ void application::run()
 		auto then = clock.now();
 
 		handle_events(elapsed / 1000.f);
-		//upd
 		render();
 
 		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - then).count();

@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <algorithm>
-#include <SFML/Graphics/VertexArray.hpp>
 #include "geometry.h"
 #include "types.h"
 
@@ -18,7 +17,7 @@ class world
 	uint32_t _size;
 	uint32_t _dim;
 
-	bool in_bounds(int x, int y) const;
+	bool in_bounds(uint32_t x, uint32_t y) const;
 
 	tile*& get(uint32_t x, uint32_t y);
 	tile* get(uint32_t x, uint32_t y) const;
@@ -42,14 +41,15 @@ public:
 	uint32_t height() const;
 	uint32_t dim() const;
 
-	sf::VertexArray get_map() const;
-
 	bool tile_solid(uint32_t x, uint32_t y) const;
 	void toggle_tile(uint32_t x, uint32_t y);
+	void clear();
+
+	std::vector<vec2f> get_corners() const;
 
 	vec2f get_source_pos() const;
 	float get_source_rad() const;
 	void move_source(const vec2f& dir, float elapsed);
 
-	vec2f ray_cast_dda(const vec2f& dest) const;
+	vec2f ray_cast_dda(vec2f dir) const;
 };

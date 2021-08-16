@@ -3,6 +3,7 @@
 #include <math.h>
 
 const float EPSILON = 0.125f;
+const float PI = 3.14159265f;
 
 //generic sign function
 template <typename T>

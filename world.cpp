@@ -1,8 +1,8 @@
 #include "world.h"
 
-bool world::in_bounds(int x, int y) const
+bool world::in_bounds(uint32_t x, uint32_t y) const
 {
-	return x > -1 && x < _width && y > -1 && y < _height;
+	return x < _width && y < _height;
 }
 
 tile*& world::get(uint32_t x, uint32_t y)
@@ -154,11 +154,11 @@ world::world(uint32_t width, uint32_t height, uint32_t dimension)
 
 	_source =
 	{
-		vec2f(2.1f * _dim, 2.1f * _dim),
-		_dim / 6.f,
+		vec2f(3.f * _dim, 3.f * _dim),
+		_dim / 2.f,
 		(float)(_dim * _width),
-		3840.f,
-		0.f
+		(float)(_width > _height ? _width : _height) * _dim,
+		PI * 2.f
 	};
 }
 
@@ -195,15 +195,38 @@ void world::toggle_tile(uint32_t x, uint32_t y)
 	convert_to_geometry();
 }
 
-sf::VertexArray world::get_map() const
+void world::clear()
 {
-	sf::VertexArray edges(sf::Lines);
+	clear_edge_data();
+	for (int y = 2; y < _height - 2; y++)
+		for (int x = 2; x < _width - 2; x++)
+			get(x, y)->solid = false;
+	convert_to_geometry();
+}
+
+std::vector<vec2f> world::get_corners() const
+{
+	std::vector<vec2f> corners;
+
 	for (auto edge : _map)
 	{
-		edges.append(sf::Vertex(edge->begin, sf::Color::White));
-		edges.append(sf::Vertex(edge->end, sf::Color::White));
+		corners.push_back(edge->begin);
+		corners.push_back(edge->end);
 	}
-	return edges;
+
+	std::sort(corners.begin(), corners.end(),
+		[](const auto& lhs, const auto& rhs)
+		{
+			if (lhs.x < rhs.x)
+				return true;
+			if (fabs(lhs.x - rhs.x) < EPSILON)
+				return lhs.y < rhs.y;
+			return false;
+		});
+
+	auto it = std::unique(corners.begin(), corners.end());
+	corners.erase(it, corners.end());
+	return corners;
 }
 
 vec2f world::get_source_pos() const
@@ -225,12 +248,12 @@ void world::move_source(const vec2f& dir, float elapsed)
 }
 
 //cast a ray from source to destination
-vec2f world::ray_cast_dda(const vec2f& dest) const
+vec2f world::ray_cast_dda(vec2f dir) const
 {
 	auto start = _source.pos;
-	auto dir = norm(dest - start);
+	dir = norm(dir);
 	auto ray_unit = vec2f(sqrt(1 + (dir.y / dir.x) * (dir.y / dir.x)), sqrt(1 + (dir.x / dir.y) * (dir.x / dir.y)));
-	auto pos = vec2u(_source.pos) / _dim;
+	auto pos = vec2u(start);
 	vec2f ray_len;
 	vec2i step;
 
@@ -261,7 +284,8 @@ vec2f world::ray_cast_dda(const vec2f& dest) const
 			dist = ray_len.y,
 			ray_len.y += ray_unit.y;
 
-		intersect = in_bounds(pos.x, pos.y) && get(pos.x, pos.y)->solid;
+		auto tile = pos / _dim;
+		intersect = in_bounds(tile.x, tile.y) && get(tile.x, tile.y)->solid;
 	}
 
 	return start + dir * dist;
