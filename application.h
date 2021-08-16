@@ -36,7 +36,6 @@ class application
 	bool _trace_light = false;
 
 	void handle_events(float elapsed);
-	void update();
 	void render();
 
 public:

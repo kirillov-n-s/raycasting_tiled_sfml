@@ -7,7 +7,7 @@ void application::draw(uint32_t x, uint32_t y)
 	if (_world->tile_solid(x, y))
 	{
 		_tile.setFillColor(sf::Color::Blue);
-		_tile.setOutlineColor(sf::Color::White);
+		_tile.setOutlineColor(sf::Color::Cyan);
 	}
 	else
 	{
@@ -76,7 +76,7 @@ void application::handle_events(float elapsed)
 			{
 			case sf::Mouse::Left:
 				mouse = vec2u(sf::Mouse::getPosition(*_window)) / _tile_dim;
-				if (mouse.x < 1 || mouse.y < 1 || mouse.x > _world->width() - 2 || mouse.y > _world->height() - 2)
+				if (mouse.x < 2 || mouse.y < 2 || mouse.x > _world->width() - 3 || mouse.y > _world->height() - 3)
 					continue;
 				_world->toggle_tile(mouse.x, mouse.y);
 				break;
@@ -88,10 +88,6 @@ void application::handle_events(float elapsed)
 	}
 }
 
-void application::update()
-{
-}
-
 void application::render()
 {
 	_window->clear();
@@ -100,7 +96,7 @@ void application::render()
 		for (int y = 0; y < _world->height(); y++)
 			draw(x, y);
 
-	auto corners = _world->get_corners();
+	auto corners = _world->corners();
 	for (const auto& corner : corners)
 	{
 		_corner.setPosition(corner - get_rad_vec(_corner));
@@ -118,6 +114,13 @@ void application::render()
 		line.append(sf::Vertex(src, sf::Color::Yellow));
 		line.append(sf::Vertex(dest, sf::Color::Yellow));
 		_window->draw(line);
+
+		/*sf::CircleShape field(len(dest - src), 100);
+		field.setPosition(src - get_rad_vec(field));
+		field.setFillColor(sf::Color::Transparent);
+		field.setOutlineColor(sf::Color(255, 128, 0));
+		field.setOutlineThickness(-4.f);
+		_window->draw(field);*/
 
 		_inter.setPosition(dest - get_rad_vec(_inter));
 		_window->draw(_inter);
@@ -144,7 +147,7 @@ void application::render()
 
 	}*/
 
-	_source.setPosition(src - vec2f(_source.getRadius(), _world->get_source_rad()));
+	_source.setPosition(src - get_rad_vec(_source));
 	_window->draw(_source);
 
 	_window->display();

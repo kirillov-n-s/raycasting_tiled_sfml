@@ -6,9 +6,8 @@
 
 class world
 {
-	std::vector<tile*> _grid;
-	std::vector<edge*> _map;
-	std::vector<ray*> _rays;
+	std::vector<tile> _grid;
+	std::vector<vec2f> _corners;
 
 	source _source;
 
@@ -19,19 +18,13 @@ class world
 
 	bool in_bounds(uint32_t x, uint32_t y) const;
 
-	tile*& get(uint32_t x, uint32_t y);
-	tile* get(uint32_t x, uint32_t y) const;
+	tile& get(uint32_t x, uint32_t y);
+	tile get(uint32_t x, uint32_t y) const;
 
-	void free_grid();
-	void free_map();
-	void free_rays();
+	std::vector<tile> get_neighbors(uint32_t x, uint32_t y);
+	//void handle_edge(uint32_t x, uint32_t y, dirs side, tile* neighbor, tile* borrow_from);
 
-	void clear_edge_data();
-	std::vector<tile*> get_neighbors(uint32_t x, uint32_t y);
-	void handle_edge(uint32_t x, uint32_t y, sides side, tile* neighbor, tile* borrow_from);
-
-	void convert_to_geometry();
-	void line_of_sight();
+	void update_corners();
 
 public:
 	world(uint32_t width, uint32_t height, uint32_t dimension);
@@ -41,15 +34,16 @@ public:
 	uint32_t height() const;
 	uint32_t dim() const;
 
+	std::vector<vec2f> corners() const;
+
 	bool tile_solid(uint32_t x, uint32_t y) const;
 	void toggle_tile(uint32_t x, uint32_t y);
 	void clear();
-
-	std::vector<vec2f> get_corners() const;
 
 	vec2f get_source_pos() const;
 	float get_source_rad() const;
 	void move_source(const vec2f& dir, float elapsed);
 
 	vec2f ray_cast_dda(vec2f dir) const;
+	void line_of_sight();
 };

@@ -1,22 +1,8 @@
 #pragma once
 
-struct edge
-{
-	vec2f begin;
-	vec2f end;
-};
-
 struct tile
 {
 	bool solid = false;
-	bool edge_exist[4] = { false };
-	int edge_id[4] = { -1 };
-};
-
-struct ray
-{
-	vec2f pos;
-	float angle = 0.f;
 };
 
 struct source
@@ -31,12 +17,22 @@ struct source
 	{
 		pos += dir * speed * elapsed;
 	}
+
+	bool contains(const vec2f& point) const
+	{
+		return dist(pos, point) < radius;
+	}
 };
 
-enum sides
+enum dirs
 {
 	N = 0,
 	E = 1,
 	S = 2,
-	W = 3
+	W = 3,
+
+	NW = 4,
+	NE = 5,
+	SE = 6,
+	SW = 7
 };
