@@ -32,77 +32,7 @@ std::vector<tile> world::get_neighbors(uint32_t x, uint32_t y)
 	return neighbors;
 }
 
-//void world::handle_edge(uint32_t x, uint32_t y, dirs side, tile* neighbor, tile* borrow_from)
-//{
-//	if (!neighbor->solid)
-//	{
-//		auto tile = get(x, y);
-//
-//		if (borrow_from->edge_exist[side])
-//		{
-//			auto& end = _corners[borrow_from->edge_id[side]]->end;
-//			if (side == E || side == W)
-//				end.y += _dim;
-//			else
-//				end.x += _dim;
-//
-//			tile->edge_exist[side] = true;
-//			tile->edge_id[side] = borrow_from->edge_id[side];
-//		}
-//		else
-//		{
-//			auto edge = new ::edge;
-//			switch (side)
-//			{
-//			case N:
-//				edge->begin = vec2f(x * _dim, y * _dim);
-//				edge->end = edge->begin + vec2f(_dim, 0.f);
-//				break;
-//			case E:
-//				edge->begin = vec2f((x + 1) * _dim, y * _dim);
-//				edge->end = edge->begin + vec2f(0.f, _dim);
-//				break;
-//			case S:
-//				edge->begin = vec2f(x * _dim, (y + 1) * _dim);
-//				edge->end = edge->begin + vec2f(_dim, 0.f);
-//				break;
-//			case W:
-//				edge->begin = vec2f(x * _dim, y * _dim);
-//				edge->end = edge->begin + vec2f(0.f, _dim);
-//				break;
-//			}
-//
-//			int id = _corners.size();
-//			_corners.push_back(edge);
-//
-//			tile->edge_exist[side] = true;
-//			tile->edge_id[side] = id;
-//		}
-//	}
-//}
-
-//void world::update_corners()
-//{
-//	free_map();
-//	clear_edge_data();
-//
-//	for (int y = 1; y < _height - 1; y++)
-//	{
-//		for (int x = 1; x < _width - 1; x++)
-//		{
-//			if (!get(x, y)->solid)
-//				continue;
-//
-//			auto neighbors = get_neighbors(x, y);
-//			handle_edge(x, y, N, neighbors[N], neighbors[W]);
-//			handle_edge(x, y, E, neighbors[E], neighbors[N]);
-//			handle_edge(x, y, S, neighbors[S], neighbors[W]);
-//			handle_edge(x, y, W, neighbors[W], neighbors[N]);
-//		}
-//	}
-//}
-
-//construct a vector of corners of tile-formed polygons
+//update corners of tile-formed polygons
 void world::update_corners()
 {
 	_corners.clear();
@@ -145,18 +75,24 @@ world::world(uint32_t width, uint32_t height, uint32_t dimension)
 
 	update_corners();
 
-	_source =
+	_src_pos_base = vec2f(2.5f * _dim, 2.5f * _dim);
+	_src_rad_base = _dim / 4.f;
+	_src_spd_base = (float)(_dim * _width);
+	_src_rng_base = sqrtf(_width * _width + _height * _height) * _dim;
+	_src_fov_base = PI + 0.01f;
+	_src =
 	{
-		vec2f(3.f * _dim, 3.f * _dim),
-		_dim / 2.f,
-		(float)(_dim * _width),
-		sqrtf(_width * _width + _height * _height) * _dim,
-		//PI * 2.f
+		_src_pos_base,
+		_src_rad_base,
+		_src_spd_base,
+		_src_rng_base,
+		_src_fov_base
 	};
 }
 
 world::~world() {}
 
+//properties
 uint32_t world::width() const
 {
 	return _width;
@@ -172,6 +108,7 @@ uint32_t world::dim() const
 	return _dim;
 }
 
+//tile data & manip
 bool world::tile_solid(uint32_t x, uint32_t y) const
 {
 	return get(x, y).solid;
@@ -191,52 +128,56 @@ void world::clear()
 	update_corners();
 }
 
-//std::vector<vec2f> world::corners() const
+//source data & manip
+vec2f world::get_src_pos() const
+{
+	return _src.pos;
+}
+
+float world::get_src_rad() const
+{
+	return _src.radius;
+}
+
+void world::move_src(const vec2f& dir, float elapsed)
+{
+	auto ndir = norm(dir);
+	auto unit = ndir * _src.speed * elapsed;
+	auto ray = ray_cast_dda(dir) - _src.pos;
+	if (len_sqr(ray) <= 1.f)
+		return;
+	_src.pos += len(unit) < len(ray) - _src.radius ? unit : ray - ndir * _src.radius;
+}
+
+//void world::mod_src_rad(float val)
 //{
-//	std::vector<vec2f> corners;
+//	_src.radius += val;
+//	if (_src.radius < 0.f)
+//		_src.radius = 0.f;
+//	else if (_src.radius > _src_rad_base)
+//		_src.radius = _src_rad_base;
+//}
 //
-//	for (auto edge : _corners)
-//	{
-//		corners.push_back(edge->begin);
-//		corners.push_back(edge->end);
-//	}
+//void world::mod_src_rng(float val)
+//{
+//	_src.range += val;
+//	if (_src.range < _dim)
+//		_src.range = _dim;
+//	else if (_src.range > _src_rng_base)
+//		_src.range = _src_rng_base;
+//}
 //
-//	std::sort(corners.begin(), corners.end(),
-//		[](const auto& lhs, const auto& rhs)
-//		{
-//			if (lhs.x < rhs.x)
-//				return true;
-//			if (fabs(lhs.x - rhs.x) < EPSILON)
-//				return lhs.y < rhs.y;
-//			return false;
-//		});
-//
-//	auto it = std::unique(corners.begin(), corners.end());
-//	corners.erase(it, corners.end());
-//	return corners;
+//void world::mod_src_fov(float val)
+//{
+//	_src.fov += val;
+//	if (_src.fov < PI * 0.25f)
+//		_src.fov = PI * 0.25f;
+//	else if (_src.fov > _src_fov_base)
+//		_src.fov = _src_fov_base;
 //}
 
-vec2f world::get_source_pos() const
-{
-	return _source.pos;
-}
-
-float world::get_source_rad() const
-{
-	return _source.radius;
-}
-
-void world::move_source(const vec2f& dir, float elapsed)
-{
-	/*auto ndir = norm(dir);
-	auto ray = path(_source.pos, ray_cast_dda(dir));
-	auto unit = ndir * _source.speed * elapsed;
-	auto move = len_sqr(unit) < len_sqr(ray) ? unit : ray;
-	_source.pos += move;*/
-	_source.pos += norm(dir) * _source.speed * elapsed;
-}
-
-std::vector<vec2f> world::corners() const
+//world features
+std::vector<vec2f> world::get_corners() const
 {
 	return _corners;
 }
@@ -244,7 +185,7 @@ std::vector<vec2f> world::corners() const
 //cast a ray from source to destination
 vec2f world::ray_cast_dda(vec2f dir) const
 {
-	auto start = _source.pos;
+	auto start = _src.pos;
 	dir = norm(dir);
 	auto ray_unit = vec2f(sqrt(1 + (dir.y / dir.x) * (dir.y / dir.x)), sqrt(1 + (dir.x / dir.y) * (dir.x / dir.y)));
 	auto pos = vec2u(start);
@@ -267,7 +208,7 @@ vec2f world::ray_cast_dda(vec2f dir) const
 
 	bool intersect = false;
 	float dist = 0.0f;
-	while (!intersect && dist < _source.range)
+	while (!intersect && dist < _src.range)
 	{
 		if (ray_len.x < ray_len.y)
 			pos.x += step.x,
@@ -292,7 +233,7 @@ std::vector<vec2f> world::line_of_sight() const
 
 	for (const auto& corner : _corners)
 	{
-		auto dir = norm(corner - _source.pos);
+		auto dir = norm(corner - _src.pos);
 		float angle = atan2f(dir.y, dir.x);
 
 		float eps = 0.0001f;
@@ -304,11 +245,21 @@ std::vector<vec2f> world::line_of_sight() const
 		dests.push_back(ray_cast_dda(dir_minus));
 	}
 
+	/*auto it = std::partition(dests.begin(), dests.end(),
+		[this](const auto& val)
+		{
+			auto dir = norm(val - _src.pos);
+			return atan2f(dir.y, dir.x) < _src.fov;
+		});
+
+	if (it != dests.end())
+		dests.erase(it, dests.end());*/
+
 	std::sort(dests.begin(), dests.end(),
 		[this](const auto& lhs, const auto& rhs)
 		{
-			auto ldir = norm(lhs - _source.pos);
-			auto rdir = norm(rhs - _source.pos);
+			auto ldir = norm(lhs - _src.pos);
+			auto rdir = norm(rhs - _src.pos);
 			return atan2f(ldir.y, ldir.x) < atan2f(rdir.y, rdir.x);
 		});
 
@@ -318,6 +269,7 @@ std::vector<vec2f> world::line_of_sight() const
 			return fabs(lhs.x - rhs.x) < 1.f && fabs(lhs.y - rhs.y) < 1.f;
 		});
 
-	dests.erase(it, dests.end());
+	if (it != dests.end())
+		dests.erase(it, dests.end());
 	return dests;
 }

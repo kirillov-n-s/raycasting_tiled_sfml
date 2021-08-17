@@ -45,6 +45,8 @@ class application
 	bool _trace_fov = false;
 	bool _trace_eye_rays = false;
 
+	uint32_t _rays_cast = 0;
+
 	void handle_events(float elapsed);
 	void render();
 

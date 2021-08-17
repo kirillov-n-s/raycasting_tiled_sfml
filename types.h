@@ -11,6 +11,7 @@ struct source
 	float radius;
 	float speed;
 	float range;
+	float fov;
 };
 
 enum dirs

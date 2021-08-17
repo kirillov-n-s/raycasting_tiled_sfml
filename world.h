@@ -8,9 +8,13 @@ class world
 {
 	std::vector<tile> _grid;
 	std::vector<vec2f> _corners;
-	std::vector<vec2f> _rays;
 
-	source _source;
+	vec2f _src_pos_base;
+	float _src_rad_base;
+	float _src_spd_base;
+	float _src_rng_base;
+	float _src_fov_base;
+	source _src;
 
 	uint32_t _width;
 	uint32_t _height;
@@ -23,8 +27,6 @@ class world
 	tile get(uint32_t x, uint32_t y) const;
 
 	std::vector<tile> get_neighbors(uint32_t x, uint32_t y);
-	//void handle_edge(uint32_t x, uint32_t y, dirs side, tile* neighbor, tile* borrow_from);
-
 	void update_corners();
 
 public:
@@ -39,11 +41,14 @@ public:
 	void toggle_tile(uint32_t x, uint32_t y);
 	void clear();
 
-	vec2f get_source_pos() const;
-	float get_source_rad() const;
-	void move_source(const vec2f& dir, float elapsed);
+	vec2f get_src_pos() const;
+	float get_src_rad() const;
+	void move_src(const vec2f& dir, float elapsed);
+	/*void mod_src_rad(float val);
+	void mod_src_rng(float val);
+	void mod_src_fov(float val);*/
 
-	std::vector<vec2f> corners() const;
+	std::vector<vec2f> get_corners() const;
 	vec2f ray_cast_dda(vec2f dir) const;
 	std::vector<vec2f> line_of_sight() const;
 };

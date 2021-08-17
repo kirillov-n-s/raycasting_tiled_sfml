@@ -40,7 +40,8 @@ void application::draw_corner(const vec2f& pos)
 
 void application::draw_source()
 {
-	_source.setPosition(_world->get_source_pos() - get_rad_vec(_source));
+	_source.setRadius(_world->get_src_rad());
+	_source.setPosition(_world->get_src_pos() - get_rad_vec(_source));
 	_window->draw(_source);
 }
 
@@ -86,28 +87,6 @@ void application::handle_events(float elapsed)
 		{
 			switch (event.key.code)
 			{
-			case sf::Keyboard::Escape:
-				_window->close();
-				break;
-			}
-		}
-
-		if (event.type == sf::Event::KeyPressed)
-			switch (event.key.code)
-			{
-			case sf::Keyboard::W:
-				_world->move_source(DIRS[N], elapsed);
-				break;
-			case sf::Keyboard::A:
-				_world->move_source(DIRS[W], elapsed);
-				break;
-			case sf::Keyboard::S:
-				_world->move_source(DIRS[S], elapsed);
-				break;
-			case sf::Keyboard::D:
-				_world->move_source(DIRS[E], elapsed);
-				break;
-
 			case sf::Keyboard::C:
 				_world->clear();
 				break;
@@ -125,6 +104,66 @@ void application::handle_events(float elapsed)
 				_trace_fov ^= true;
 				_trace_eye_rays = false;
 				break;
+
+			/*case sf::Keyboard::Up:
+				_world->mod_src_rng(INFINITY);
+				break;
+			case sf::Keyboard::Down:
+				_world->mod_src_rng(-INFINITY);
+				break;
+			case sf::Keyboard::End:
+				_world->mod_src_fov(INFINITY);
+				break;
+			case sf::Keyboard::Home:
+				_world->mod_src_fov(-INFINITY);
+				break;
+			case sf::Keyboard::Equal:
+				_world->mod_src_rad(INFINITY);
+				break;
+			case sf::Keyboard::Hyphen:
+				_world->mod_src_rad(-INFINITY);
+				break;*/
+
+			case sf::Keyboard::Escape:
+				_window->close();
+				break;
+			}
+		}
+
+		if (event.type == sf::Event::KeyPressed)
+			switch (event.key.code)
+			{
+			case sf::Keyboard::W:
+				_world->move_src(DIRS[N], elapsed);
+				break;
+			case sf::Keyboard::A:
+				_world->move_src(DIRS[W], elapsed);
+				break;
+			case sf::Keyboard::S:
+				_world->move_src(DIRS[S], elapsed);
+				break;
+			case sf::Keyboard::D:
+				_world->move_src(DIRS[E], elapsed);
+				break;
+
+			/*case sf::Keyboard::Left:
+				_world->mod_src_rng(-(float)_tile_dim);
+				break;
+			case sf::Keyboard::Right:
+				_world->mod_src_rng(_tile_dim);
+				break;
+			case sf::Keyboard::PageUp:
+				_world->mod_src_fov(PI * 0.25f);
+				break;
+			case sf::Keyboard::PageDown:
+				_world->mod_src_fov(-PI * 0.25f);
+				break;
+			case sf::Keyboard::LBracket:
+				_world->mod_src_rad(-2.f);
+				break;
+			case sf::Keyboard::RBracket:
+				_world->mod_src_rad(2.f);
+				break;*/
 			}
 
 		if (event.type == sf::Event::MouseButtonReleased)
@@ -155,7 +194,7 @@ void application::render()
 		for (int y = 0; y < _world->height(); y++)
 			draw_tile(x, y);
 
-	auto src = _world->get_source_pos();
+	auto src = _world->get_src_pos();
 
 	if (_trace_fov || _trace_eye_rays)
 	{
@@ -169,6 +208,8 @@ void application::render()
 			for (const auto& point : points)
 				draw_intersect(point, color);
 		}
+
+		_rays_cast += points.size();
 	}
 
 	if (_trace_mouse)
@@ -186,6 +227,8 @@ void application::render()
 		field.setOutlineColor(sf::Color(255, 128, 0));
 		field.setOutlineThickness(-4.f);
 		_window->draw(field);*/
+
+		_rays_cast++;
 	}
 
 	if (_trace_around)
@@ -198,16 +241,18 @@ void application::render()
 			draw_line(src, dest, color);
 			draw_intersect(dest, color);
 		}
-	}
 
-	draw_source();
+		_rays_cast += DIRS.size();
+	}
 
 	if (_show_corners)
 	{
-		auto corners = _world->corners();
+		auto corners = _world->get_corners();
 		for (const auto& corner : corners)
 			draw_corner(corner);
 	}
+
+	draw_source();
 
 	_window->display();
 }
@@ -220,24 +265,19 @@ application::application(world* world, const std::string& title)
 	_tile = sf::RectangleShape(vec2f(_tile_dim, _tile_dim));
 	_tile.setOutlineThickness(-2.f);
 
-	_source = sf::CircleShape(_world->get_source_rad() / 2.f, 6);
+	_source = sf::CircleShape(_world->get_src_rad(), 6);
 	_source.setFillColor(sf::Color::Magenta);
 	/*_source.setOutlineColor(sf::Color::Magenta);
 	_source.setOutlineThickness(-2.f);*/
 
 	_intersect = sf::CircleShape(_tile_dim / 4.f);
 	_intersect.setFillColor(sf::Color::Transparent);
-	_intersect.setOutlineColor(sf::Color::Green);
 	_intersect.setOutlineThickness(-2.f);
 
 	_corner = sf::CircleShape(_tile_dim / 8.f);
 	_corner.setFillColor(sf::Color::White);
-	/*_corner.setOutlineColor(sf::Color::Cyan);
-	_corner.setOutlineThickness(-2.f);*/
 
 	_window = new sf::RenderWindow(sf::VideoMode(_world->width() * _tile_dim, _world->height() * _tile_dim), _title);
-	_window->setVerticalSyncEnabled(true);
-	//_window->setFramerateLimit(120);
 }
 
 application::~application()
@@ -252,6 +292,7 @@ void application::run()
 
 	while (_window->isOpen())
 	{
+		_rays_cast = 0;
 		auto then = clock.now();
 
 		handle_events(elapsed / 1000.f);
@@ -259,7 +300,7 @@ void application::run()
 
 		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - then).count();
 		uint64_t fps = 1000 / elapsed;
-		std::string log = "[FPS: " + std::to_string(fps) + "]";
+		std::string log = "[FPS: " + std::to_string(fps) + "] [Rays cast: " + std::to_string(_rays_cast) + "]";
 		_window->setTitle(_title + " " + log);
 	}
 }
