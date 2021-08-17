@@ -2,7 +2,6 @@
 #include <SFML/System/Vector2.hpp>
 #include <math.h>
 
-const float EPSILON = 0.125f;
 const float PI = 3.14159265f;
 
 //generic sign function
@@ -45,16 +44,6 @@ inline float len(const vec2f& vec)
 inline vec2f sgn(const vec2f& vec)
 {
 	return vec2f(sgn(vec.x), sgn(vec.y));
-}
-
-inline vec2f path(const vec2f& a, const vec2f& b)
-{
-	return b - a;
-}
-
-inline float dist(const vec2f& a, const vec2f& b)
-{
-	return len(path(a, b));
 }
 
 inline vec2f norm(const vec2f& vec)

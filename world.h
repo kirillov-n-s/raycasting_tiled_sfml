@@ -8,6 +8,7 @@ class world
 {
 	std::vector<tile> _grid;
 	std::vector<vec2f> _corners;
+	std::vector<vec2f> _rays;
 
 	source _source;
 
@@ -34,8 +35,6 @@ public:
 	uint32_t height() const;
 	uint32_t dim() const;
 
-	std::vector<vec2f> corners() const;
-
 	bool tile_solid(uint32_t x, uint32_t y) const;
 	void toggle_tile(uint32_t x, uint32_t y);
 	void clear();
@@ -44,6 +43,7 @@ public:
 	float get_source_rad() const;
 	void move_source(const vec2f& dir, float elapsed);
 
+	std::vector<vec2f> corners() const;
 	vec2f ray_cast_dda(vec2f dir) const;
-	void line_of_sight();
+	std::vector<vec2f> line_of_sight() const;
 };

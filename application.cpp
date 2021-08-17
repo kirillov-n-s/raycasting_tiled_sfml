@@ -1,6 +1,13 @@
 #include "application.h"
 
-void application::draw(uint32_t x, uint32_t y)
+vec2f application::get_rad_vec(const sf::CircleShape& circle) const
+{
+	auto rad = circle.getRadius();
+	return vec2f(rad, rad);
+}
+
+//drawing functions
+void application::draw_tile(uint32_t x, uint32_t y)
 {
 	_tile.setPosition(vec2f(x * _tile_dim, y * _tile_dim));
 
@@ -18,12 +25,55 @@ void application::draw(uint32_t x, uint32_t y)
 	_window->draw(_tile);
 }
 
-vec2f application::get_rad_vec(const sf::CircleShape& circle) const
+void application::draw_intersect(const vec2f& pos, const sf::Color& color)
 {
-	auto rad = circle.getRadius();
-	return vec2f(rad, rad);
+	_intersect.setOutlineColor(color);
+	_intersect.setPosition(pos - get_rad_vec(_intersect));
+	_window->draw(_intersect);
 }
 
+void application::draw_corner(const vec2f& pos)
+{
+	_corner.setPosition(pos - get_rad_vec(_corner));
+	_window->draw(_corner);
+}
+
+void application::draw_source()
+{
+	_source.setPosition(_world->get_source_pos() - get_rad_vec(_source));
+	_window->draw(_source);
+}
+
+void application::draw_line(const vec2f& a, const vec2f& b, const sf::Color& color)
+{
+	sf::VertexArray line(sf::Lines);
+	line.append(sf::Vertex(a, color));
+	line.append(sf::Vertex(b, color));
+	_window->draw(line);
+}
+
+void application::draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color)
+{
+	sf::VertexArray fan(sf::TriangleFan);
+	fan.append(sf::Vertex(center, color));
+	for (const auto& point : points)
+		fan.append(sf::Vertex(point, color));
+	fan.append(sf::Vertex(points[0], color));
+	_window->draw(fan);
+}
+
+void application::draw_star(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color)
+{
+	sf::VertexArray star(sf::Lines);
+	for (int i = 0; i < points.size(); i++)
+	{
+		star.append(sf::Vertex(center, color));
+		star.append(sf::Vertex(points[i], color));
+	}
+	_window->draw(star);
+}
+
+//event handling
 void application::handle_events(float elapsed)
 {
 	sf::Event event;
@@ -64,9 +114,17 @@ void application::handle_events(float elapsed)
 			case sf::Keyboard::Q:
 				_trace_around ^= true;
 				break;
-			/*case sf::Keyboard::Space:
-				_trace_light ^= true;
-				break;*/
+			case sf::Keyboard::E:
+				_show_corners ^= true;
+				break;
+			case sf::Keyboard::R:
+				_trace_eye_rays ^= true;
+				_trace_fov = false;
+				break;
+			case sf::Keyboard::F:
+				_trace_fov ^= true;
+				_trace_eye_rays = false;
+				break;
 			}
 
 		if (event.type == sf::Event::MouseButtonReleased)
@@ -88,32 +146,39 @@ void application::handle_events(float elapsed)
 	}
 }
 
+//render
 void application::render()
 {
 	_window->clear();
 
 	for (int x = 0; x < _world->width(); x++)
 		for (int y = 0; y < _world->height(); y++)
-			draw(x, y);
-
-	auto corners = _world->corners();
-	for (const auto& corner : corners)
-	{
-		_corner.setPosition(corner - get_rad_vec(_corner));
-		_window->draw(_corner);
-	}
+			draw_tile(x, y);
 
 	auto src = _world->get_source_pos();
+
+	if (_trace_fov || _trace_eye_rays)
+	{
+		auto points = _world->line_of_sight();
+		if (_trace_fov)
+			draw_fan(src, points, { 255, 160, 0, 192 });
+		else
+		{
+			sf::Color color = sf::Color::Yellow;
+			draw_star(src, points, color);
+			for (const auto& point : points)
+				draw_intersect(point, color);
+		}
+	}
 
 	if (_trace_mouse)
 	{
 		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
 		auto dest = _world->ray_cast_dda(mouse - src);
+		sf::Color color = sf::Color::Red;
 
-		sf::VertexArray line(sf::Lines);
-		line.append(sf::Vertex(src, sf::Color::Yellow));
-		line.append(sf::Vertex(dest, sf::Color::Yellow));
-		_window->draw(line);
+		draw_line(src, dest, color);
+		draw_intersect(dest, color);
 
 		/*sf::CircleShape field(len(dest - src), 100);
 		field.setPosition(src - get_rad_vec(field));
@@ -121,9 +186,6 @@ void application::render()
 		field.setOutlineColor(sf::Color(255, 128, 0));
 		field.setOutlineThickness(-4.f);
 		_window->draw(field);*/
-
-		_inter.setPosition(dest - get_rad_vec(_inter));
-		_window->draw(_inter);
 	}
 
 	if (_trace_around)
@@ -131,28 +193,26 @@ void application::render()
 		for (const auto& dir : DIRS)
 		{
 			auto dest = _world->ray_cast_dda(dir);
+			sf::Color color = sf::Color::Green;
 
-			sf::VertexArray line(sf::Lines);
-			line.append(sf::Vertex(src, sf::Color::Red));
-			line.append(sf::Vertex(dest, sf::Color::Red));
-			_window->draw(line);
-
-			_inter.setPosition(dest - get_rad_vec(_inter));
-			_window->draw(_inter);
+			draw_line(src, dest, color);
+			draw_intersect(dest, color);
 		}
 	}
 
-	/*if (_trace_light)
+	draw_source();
+
+	if (_show_corners)
 	{
-
-	}*/
-
-	_source.setPosition(src - get_rad_vec(_source));
-	_window->draw(_source);
+		auto corners = _world->corners();
+		for (const auto& corner : corners)
+			draw_corner(corner);
+	}
 
 	_window->display();
 }
 
+//public interface
 application::application(world* world, const std::string& title)
 	: _world(world), _title(title)
 {
@@ -160,18 +220,17 @@ application::application(world* world, const std::string& title)
 	_tile = sf::RectangleShape(vec2f(_tile_dim, _tile_dim));
 	_tile.setOutlineThickness(-2.f);
 
-	auto rad = _world->get_source_rad();
-	_source = sf::CircleShape(rad, 6);
-	_source.setFillColor(sf::Color::Transparent);
-	_source.setOutlineColor(sf::Color::Magenta);
-	_source.setOutlineThickness(-2.f);
+	_source = sf::CircleShape(_world->get_source_rad() / 2.f, 6);
+	_source.setFillColor(sf::Color::Magenta);
+	/*_source.setOutlineColor(sf::Color::Magenta);
+	_source.setOutlineThickness(-2.f);*/
 
-	_inter = sf::CircleShape(rad / 2.f);
-	_inter.setFillColor(sf::Color::Transparent);
-	_inter.setOutlineColor(sf::Color::Green);
-	_inter.setOutlineThickness(-2.f);
+	_intersect = sf::CircleShape(_tile_dim / 4.f);
+	_intersect.setFillColor(sf::Color::Transparent);
+	_intersect.setOutlineColor(sf::Color::Green);
+	_intersect.setOutlineThickness(-2.f);
 
-	_corner = sf::CircleShape(rad / 4.f);
+	_corner = sf::CircleShape(_tile_dim / 8.f);
 	_corner.setFillColor(sf::Color::White);
 	/*_corner.setOutlineColor(sf::Color::Cyan);
 	_corner.setOutlineThickness(-2.f);*/

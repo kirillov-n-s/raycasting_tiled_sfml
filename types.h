@@ -11,17 +11,6 @@ struct source
 	float radius;
 	float speed;
 	float range;
-	float fov;
-
-	void move(const vec2f& dir, float elapsed)
-	{
-		pos += dir * speed * elapsed;
-	}
-
-	bool contains(const vec2f& point) const
-	{
-		return dist(pos, point) < radius;
-	}
 };
 
 enum dirs

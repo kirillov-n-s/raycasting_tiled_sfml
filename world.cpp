@@ -151,7 +151,7 @@ world::world(uint32_t width, uint32_t height, uint32_t dimension)
 		_dim / 2.f,
 		(float)(_dim * _width),
 		sqrtf(_width * _width + _height * _height) * _dim,
-		PI * 2.f
+		//PI * 2.f
 	};
 }
 
@@ -191,11 +191,6 @@ void world::clear()
 	update_corners();
 }
 
-std::vector<vec2f> world::corners() const
-{
-	return _corners;
-}
-
 //std::vector<vec2f> world::corners() const
 //{
 //	std::vector<vec2f> corners;
@@ -233,10 +228,17 @@ float world::get_source_rad() const
 
 void world::move_source(const vec2f& dir, float elapsed)
 {
-	_source.move(dir, elapsed);
-	auto pos = vec2u(_source.pos) / _dim;
-	if (get(pos.x, pos.y).solid)
-		_source.move(-dir, elapsed);
+	/*auto ndir = norm(dir);
+	auto ray = path(_source.pos, ray_cast_dda(dir));
+	auto unit = ndir * _source.speed * elapsed;
+	auto move = len_sqr(unit) < len_sqr(ray) ? unit : ray;
+	_source.pos += move;*/
+	_source.pos += norm(dir) * _source.speed * elapsed;
+}
+
+std::vector<vec2f> world::corners() const
+{
+	return _corners;
 }
 
 //cast a ray from source to destination
@@ -284,7 +286,38 @@ vec2f world::ray_cast_dda(vec2f dir) const
 }
 
 //shadow casting
-void world::line_of_sight()
+std::vector<vec2f> world::line_of_sight() const
 {
+	std::vector<vec2f> dests;
 
+	for (const auto& corner : _corners)
+	{
+		auto dir = norm(corner - _source.pos);
+		float angle = atan2f(dir.y, dir.x);
+
+		float eps = 0.0001f;
+		auto dir_plus = vec2f(cosf(angle + eps), sinf(angle + eps));
+		auto dir_minus = vec2f(cosf(angle - eps), sinf(angle - eps));
+
+		dests.push_back(ray_cast_dda(dir));
+		dests.push_back(ray_cast_dda(dir_plus));
+		dests.push_back(ray_cast_dda(dir_minus));
+	}
+
+	std::sort(dests.begin(), dests.end(),
+		[this](const auto& lhs, const auto& rhs)
+		{
+			auto ldir = norm(lhs - _source.pos);
+			auto rdir = norm(rhs - _source.pos);
+			return atan2f(ldir.y, ldir.x) < atan2f(rdir.y, rdir.x);
+		});
+
+	auto it = std::unique(dests.begin(), dests.end(),
+		[](const auto& lhs, const auto& rhs)
+		{
+			return fabs(lhs.x - rhs.x) < 1.f && fabs(lhs.y - rhs.y) < 1.f;
+		});
+
+	dests.erase(it, dests.end());
+	return dests;
 }
