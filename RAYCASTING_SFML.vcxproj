@@ -147,12 +147,14 @@
   <ItemGroup>
     <ClCompile Include="application.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="source.cpp" />
     <ClCompile Include="world.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="application.h" />
     <ClInclude Include="geometry.h" />
-    <ClInclude Include="types.h" />
+    <ClInclude Include="source.h" />
+    <ClInclude Include="utils.h" />
     <ClInclude Include="world.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

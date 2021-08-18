@@ -40,8 +40,7 @@ void application::draw_corner(const vec2f& pos)
 
 void application::draw_source()
 {
-	_source.setRadius(_world->get_src_rad());
-	_source.setPosition(_world->get_src_pos() - get_rad_vec(_source));
+	_source.setPosition(_src->get_pos() - get_rad_vec(_source));
 	_window->draw(_source);
 }
 
@@ -97,12 +96,12 @@ void application::handle_events(float elapsed)
 				_show_corners ^= true;
 				break;
 			case sf::Keyboard::R:
-				_trace_eye_rays ^= true;
-				_trace_fov = false;
+				_trace_light_rays ^= true;
+				_trace_light = false;
 				break;
 			case sf::Keyboard::F:
-				_trace_fov ^= true;
-				_trace_eye_rays = false;
+				_trace_light ^= true;
+				_trace_light_rays = false;
 				break;
 
 			/*case sf::Keyboard::Up:
@@ -116,12 +115,6 @@ void application::handle_events(float elapsed)
 				break;
 			case sf::Keyboard::Home:
 				_world->mod_src_fov(-INFINITY);
-				break;
-			case sf::Keyboard::Equal:
-				_world->mod_src_rad(INFINITY);
-				break;
-			case sf::Keyboard::Hyphen:
-				_world->mod_src_rad(-INFINITY);
 				break;*/
 
 			case sf::Keyboard::Escape:
@@ -134,16 +127,16 @@ void application::handle_events(float elapsed)
 			switch (event.key.code)
 			{
 			case sf::Keyboard::W:
-				_world->move_src(DIRS[N], elapsed);
+				_src->move(DIRS[N], elapsed);
 				break;
 			case sf::Keyboard::A:
-				_world->move_src(DIRS[W], elapsed);
+				_src->move(DIRS[W], elapsed);
 				break;
 			case sf::Keyboard::S:
-				_world->move_src(DIRS[S], elapsed);
+				_src->move(DIRS[S], elapsed);
 				break;
 			case sf::Keyboard::D:
-				_world->move_src(DIRS[E], elapsed);
+				_src->move(DIRS[E], elapsed);
 				break;
 
 			/*case sf::Keyboard::Left:
@@ -157,12 +150,6 @@ void application::handle_events(float elapsed)
 				break;
 			case sf::Keyboard::PageDown:
 				_world->mod_src_fov(-PI * 0.25f);
-				break;
-			case sf::Keyboard::LBracket:
-				_world->mod_src_rad(-2.f);
-				break;
-			case sf::Keyboard::RBracket:
-				_world->mod_src_rad(2.f);
 				break;*/
 			}
 
@@ -194,16 +181,16 @@ void application::render()
 		for (int y = 0; y < _world->height(); y++)
 			draw_tile(x, y);
 
-	auto src = _world->get_src_pos();
+	auto src = _src->get_pos();
 
-	if (_trace_fov || _trace_eye_rays)
+	if (_trace_light || _trace_light_rays)
 	{
-		auto points = _world->line_of_sight();
-		if (_trace_fov)
-			draw_fan(src, points, { 255, 160, 0, 192 });
+		auto points = _src->line_of_sight();
+		sf::Color color = { 255, 160, 0, 192 };
+		if (_trace_light)
+			draw_fan(src, points, color);
 		else
 		{
-			sf::Color color = sf::Color::Yellow;
 			draw_star(src, points, color);
 			for (const auto& point : points)
 				draw_intersect(point, color);
@@ -215,7 +202,7 @@ void application::render()
 	if (_trace_mouse)
 	{
 		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-		auto dest = _world->ray_cast_dda(mouse - src);
+		auto dest = _src->ray_cast_dda(mouse - src);
 		sf::Color color = sf::Color::Red;
 
 		draw_line(src, dest, color);
@@ -235,7 +222,7 @@ void application::render()
 	{
 		for (const auto& dir : DIRS)
 		{
-			auto dest = _world->ray_cast_dda(dir);
+			auto dest = _src->ray_cast_dda(dir);
 			sf::Color color = sf::Color::Green;
 
 			draw_line(src, dest, color);
@@ -258,17 +245,17 @@ void application::render()
 }
 
 //public interface
-application::application(world* world, const std::string& title)
-	: _world(world), _title(title)
+application::application(world* world, source* source, const std::string& title)
+	: _world(world), _src(source), _title(title)
 {
 	_tile_dim = _world->dim();
 	_tile = sf::RectangleShape(vec2f(_tile_dim, _tile_dim));
 	_tile.setOutlineThickness(-2.f);
 
-	_source = sf::CircleShape(_world->get_src_rad(), 6);
-	_source.setFillColor(sf::Color::Magenta);
-	/*_source.setOutlineColor(sf::Color::Magenta);
-	_source.setOutlineThickness(-2.f);*/
+	_source = sf::CircleShape(_tile_dim / 4.f, 6);
+	_source.setFillColor(sf::Color::Transparent);
+	_source.setOutlineColor(sf::Color::Magenta);
+	_source.setOutlineThickness(-4.f);
 
 	_intersect = sf::CircleShape(_tile_dim / 4.f);
 	_intersect.setFillColor(sf::Color::Transparent);

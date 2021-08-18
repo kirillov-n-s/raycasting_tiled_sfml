@@ -4,13 +4,14 @@
 #include <SFML/System.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
-#include "world.h"
+#include "source.h"
 
 using namespace std::chrono_literals;
 
 class application
 {
 	world* _world;
+	source* _src;
 
 	std::string _title;
 	sf::RenderWindow* _window;
@@ -42,8 +43,8 @@ class application
 	bool _show_corners = true;
 	bool _trace_mouse = false;
 	bool _trace_around = false;
-	bool _trace_fov = false;
-	bool _trace_eye_rays = false;
+	bool _trace_light = false;
+	bool _trace_light_rays = false;
 
 	uint32_t _rays_cast = 0;
 
@@ -51,7 +52,7 @@ class application
 	void render();
 
 public:
-	application(world* world, const std::string& title = "");
+	application(world* world, source* source, const std::string& title = "");
 	~application();
 
 	void run();
