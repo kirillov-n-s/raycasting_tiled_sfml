@@ -3,6 +3,7 @@
 #include <math.h>
 
 const float PI = 3.14159265f;
+const float ALPHA = PI / 180.f;
 
 //generic sign function
 template <typename T>

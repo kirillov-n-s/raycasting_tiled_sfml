@@ -44,6 +44,14 @@ void application::draw_source()
 	_window->draw(_source);
 }
 
+void application::draw_field(float rad, const sf::Color& color)
+{
+	_field.setRadius(rad);
+	_field.setPosition(_src->get_pos() - get_rad_vec(_field));
+	_field.setOutlineColor(color);
+	_window->draw(_field);
+}
+
 void application::draw_line(const vec2f& a, const vec2f& b, const sf::Color& color)
 {
 	sf::VertexArray line(sf::Lines);
@@ -52,13 +60,14 @@ void application::draw_line(const vec2f& a, const vec2f& b, const sf::Color& col
 	_window->draw(line);
 }
 
-void application::draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color)
+void application::draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color, bool connect)
 {
 	sf::VertexArray fan(sf::TriangleFan);
 	fan.append(sf::Vertex(center, color));
 	for (const auto& point : points)
 		fan.append(sf::Vertex(point, color));
-	fan.append(sf::Vertex(points[0], color));
+	if (connect)
+		fan.append(sf::Vertex(points[0], color));
 	_window->draw(fan);
 }
 
@@ -84,7 +93,9 @@ void application::handle_events(float elapsed)
 
 		if (event.type == sf::Event::KeyReleased)
 		{
-			switch (event.key.code)
+			auto key = event.key.code;
+
+			switch (key)
 			{
 			case sf::Keyboard::C:
 				_world->clear();
@@ -97,30 +108,37 @@ void application::handle_events(float elapsed)
 				break;
 			case sf::Keyboard::R:
 				_trace_light_rays ^= true;
-				_trace_light = false;
+				_trace_light = _trace_fov = _trace_fov_rays = false;
 				break;
 			case sf::Keyboard::F:
 				_trace_light ^= true;
-				_trace_light_rays = false;
+				_trace_light_rays = _trace_fov = _trace_fov_rays = false;
+				break;
+			case sf::Keyboard::T:
+				_trace_fov_rays ^= true;
+				_trace_fov = _trace_light = _trace_light_rays = false;
+				break;
+			case sf::Keyboard::G:
+				_trace_fov ^= true;
+				_trace_fov_rays = _trace_light = _trace_light_rays = false;
 				break;
 
-			/*case sf::Keyboard::Up:
-				_world->mod_src_rng(INFINITY);
+			case sf::Keyboard::Up:
+				_src->mod_range(INFINITY);
 				break;
 			case sf::Keyboard::Down:
-				_world->mod_src_rng(-INFINITY);
+				_src->mod_range(-INFINITY);
 				break;
-			case sf::Keyboard::End:
-				_world->mod_src_fov(INFINITY);
-				break;
-			case sf::Keyboard::Home:
-				_world->mod_src_fov(-INFINITY);
-				break;*/
 
 			case sf::Keyboard::Escape:
 				_window->close();
 				break;
 			}
+
+			if (key > sf::Keyboard::Num0 && key <= sf::Keyboard::Num9)
+				_src->set_precision(key - sf::Keyboard::Num0);
+			else if (key == sf::Keyboard::Num0)
+				_src->set_precision(10);
 		}
 
 		if (event.type == sf::Event::KeyPressed)
@@ -139,18 +157,12 @@ void application::handle_events(float elapsed)
 				_src->move(DIRS[E], elapsed);
 				break;
 
-			/*case sf::Keyboard::Left:
-				_world->mod_src_rng(-(float)_tile_dim);
+			case sf::Keyboard::Left:
+				_src->mod_range(-(float)_tile_dim);
 				break;
 			case sf::Keyboard::Right:
-				_world->mod_src_rng(_tile_dim);
+				_src->mod_range(_tile_dim);
 				break;
-			case sf::Keyboard::PageUp:
-				_world->mod_src_fov(PI * 0.25f);
-				break;
-			case sf::Keyboard::PageDown:
-				_world->mod_src_fov(-PI * 0.25f);
-				break;*/
 			}
 
 		if (event.type == sf::Event::MouseButtonReleased)
@@ -167,7 +179,19 @@ void application::handle_events(float elapsed)
 			case sf::Mouse::Right:
 				_trace_mouse ^= true;
 				break;
+
+			case sf::Mouse::XButton1:
+				_src->mod_fov(-INFINITY);
+				break;
+			case sf::Mouse::XButton2:
+				_src->mod_fov(INFINITY);
+				break;
 			}
+		}
+
+		if (event.type == sf::Event::MouseWheelScrolled)
+		{
+			_src->mod_fov(event.mouseWheelScroll.delta < 0.f ? -ALPHA : ALPHA);
 		}
 	}
 }
@@ -188,7 +212,23 @@ void application::render()
 		auto points = _src->line_of_sight();
 		sf::Color color = { 255, 160, 0, 192 };
 		if (_trace_light)
-			draw_fan(src, points, color);
+			draw_fan(src, points, color, true);
+		else
+		{
+			draw_star(src, points, color);
+			for (const auto& point : points)
+				draw_intersect(point, color);
+		}
+
+		_rays_cast += points.size();
+	}
+	else if (_trace_fov || _trace_fov_rays)
+	{
+		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
+		auto points = _src->field_of_view(mouse - src);
+		sf::Color color = { 224, 224, 255, 192 };
+		if (_trace_fov)
+			draw_fan(src, points, color, false);
 		else
 		{
 			draw_star(src, points, color);
@@ -202,34 +242,24 @@ void application::render()
 	if (_trace_mouse)
 	{
 		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-		auto dest = _src->ray_cast_dda(mouse - src);
+		auto end = _src->ray_cast_dda(mouse - src);
 		sf::Color color = sf::Color::Red;
 
-		draw_line(src, dest, color);
-		draw_intersect(dest, color);
-
-		/*sf::CircleShape field(len(dest - src), 100);
-		field.setPosition(src - get_rad_vec(field));
-		field.setFillColor(sf::Color::Transparent);
-		field.setOutlineColor(sf::Color(255, 128, 0));
-		field.setOutlineThickness(-4.f);
-		_window->draw(field);*/
+		draw_line(src, end, color);
+		draw_intersect(end, color);
+		//draw_field(len(end - src));
 
 		_rays_cast++;
 	}
 
 	if (_trace_around)
 	{
-		for (const auto& dir : DIRS)
-		{
-			auto dest = _src->ray_cast_dda(dir);
-			sf::Color color = sf::Color::Green;
 
-			draw_line(src, dest, color);
-			draw_intersect(dest, color);
-		}
-
-		_rays_cast += DIRS.size();
+		auto closest = _src->closet_collision();
+		sf::Color color = sf::Color::Green;
+		draw_line(_src->get_pos(), closest, color);
+		draw_intersect(closest, color);
+		draw_field(len(_src->get_pos() - closest), color);
 	}
 
 	if (_show_corners)
@@ -253,9 +283,14 @@ application::application(world* world, source* source, const std::string& title)
 	_tile.setOutlineThickness(-2.f);
 
 	_source = sf::CircleShape(_tile_dim / 4.f, 6);
-	_source.setFillColor(sf::Color::Transparent);
-	_source.setOutlineColor(sf::Color::Magenta);
-	_source.setOutlineThickness(-4.f);
+	_source.setFillColor(sf::Color::Black);
+	_source.setOutlineColor(sf::Color::White);
+	_source.setOutlineThickness(_tile_dim / -12.f);
+
+	_field = sf::CircleShape(_world->width(), 100);
+	_field.setFillColor(sf::Color::Transparent);
+	_field.setOutlineColor(sf::Color::Magenta);
+	_field.setOutlineThickness(-4.f);
 
 	_intersect = sf::CircleShape(_tile_dim / 4.f);
 	_intersect.setFillColor(sf::Color::Transparent);

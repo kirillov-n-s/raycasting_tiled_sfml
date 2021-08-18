@@ -19,6 +19,7 @@ class application
 	uint32_t _tile_dim;
 	sf::RectangleShape _tile;
 	sf::CircleShape _source;
+	sf::CircleShape _field;
 	sf::CircleShape _intersect;
 	sf::CircleShape _corner;
 
@@ -28,8 +29,9 @@ class application
 	void draw_intersect(const vec2f& pos, const sf::Color& color);
 	void draw_corner(const vec2f& pos);
 	void draw_source();
+	void draw_field(float rad, const sf::Color& color);
 	void draw_line(const vec2f& a, const vec2f& b, const sf::Color& color);
-	void draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color);
+	void draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color, bool connect);
 	void draw_star(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color);
 
 	const std::vector<vec2f> DIRS =
@@ -45,6 +47,8 @@ class application
 	bool _trace_around = false;
 	bool _trace_light = false;
 	bool _trace_light_rays = false;
+	bool _trace_fov = false;
+	bool _trace_fov_rays = false;
 
 	uint32_t _rays_cast = 0;
 
