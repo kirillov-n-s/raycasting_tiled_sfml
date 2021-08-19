@@ -116,10 +116,11 @@ vec2f source::ray_cast_dda(const vec2f& dir) const
 }
 
 //cast light & shadows
-std::vector<vec2f> source::line_of_sight() const
+std::pair<std::vector<vec2f>, uint32_t> source::line_of_sight() const
 {
 	std::vector<vec2f> rays;
 	auto corners = _world->get_corners();
+	uint32_t count;
 
 	for (const auto& corner : corners)
 	{
@@ -134,6 +135,8 @@ std::vector<vec2f> source::line_of_sight() const
 		rays.push_back(ray_cast_dda(rdir));
 		rays.push_back(ray_cast_dda(ldir));
 	}
+
+	count = rays.size();
 
 	std::sort(rays.begin(), rays.end(),
 		[this](const auto& lhs, const auto& rhs)
@@ -151,15 +154,16 @@ std::vector<vec2f> source::line_of_sight() const
 
 	if (it != rays.end())
 		rays.erase(it, rays.end());
-	return rays;
+	return std::make_pair(rays, count);
 }
 
-std::vector<vec2f> source::field_of_view(const vec2f& dir) const
+std::pair<std::vector<vec2f>, uint32_t> source::field_of_view(const vec2f& dir) const
 {
 	auto ndir = norm(dir);
 	auto angle = atan2f(ndir.y, ndir.x);
 	int n = ceilf(_fov / _precision);
 	std::vector<vec2f> rays(n * 2);
+	uint32_t count;
 
 	for (int i = 0; i < n; i++)
 	{
@@ -198,6 +202,8 @@ std::vector<vec2f> source::field_of_view(const vec2f& dir) const
 		rays.push_back(ray_cast_dda(ldir));
 	}
 
+	count = rays.size();
+
 	auto edge = vec2f(cosf(angle - _fov), sinf(angle - _fov));
 	std::sort(rays.begin(), rays.end(),
 		[this, edge](const auto& lhs, const auto& rhs)
@@ -216,10 +222,10 @@ std::vector<vec2f> source::field_of_view(const vec2f& dir) const
 	if (it != rays.end())
 		rays.erase(it, rays.end());
 
-	return rays;
+	return std::make_pair(rays, count);
 }
 
-vec2f source::closet_collision() const
+std::pair<vec2f, uint32_t> source::closet_collision() const
 {
 	int n = ceilf(2.f * PI / _precision);
 	std::vector<vec2f> rays(n);
@@ -231,9 +237,11 @@ vec2f source::closet_collision() const
 		rays[i] = ray_cast_dda(dir);
 	}
 
-	return *std::min_element(rays.begin(), rays.end(),
+	auto closest = *std::min_element(rays.begin(), rays.end(),
 		[this](const auto& lhs, const auto& rhs)
 		{
 			return len_sqr(lhs - _pos) < len_sqr(rhs - _pos);
 		});
+
+	return std::make_pair(closest, n);
 }

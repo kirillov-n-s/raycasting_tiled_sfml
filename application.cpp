@@ -209,7 +209,10 @@ void application::render()
 
 	if (_trace_light || _trace_light_rays)
 	{
-		auto points = _src->line_of_sight();
+		const auto& result = _src->line_of_sight();
+		const auto& points = result.first;
+		auto count = result.second;
+
 		sf::Color color = { 255, 160, 0, 192 };
 		if (_trace_light)
 			draw_fan(src, points, color, true);
@@ -220,13 +223,18 @@ void application::render()
 				draw_intersect(point, color);
 		}
 
-		_rays_cast += points.size();
+		_rays_cast += count;
+		_rays_drawn += points.size();
 	}
 	else if (_trace_fov || _trace_fov_rays)
 	{
 		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-		auto points = _src->field_of_view(mouse - src);
-		sf::Color color = { 224, 224, 255, 192 };
+
+		const auto& result = _src->field_of_view(mouse - src);
+		const auto& points = result.first;
+		auto count = result.second;
+
+		sf::Color color = { 128, 160, 255, 192 };
 		if (_trace_fov)
 			draw_fan(src, points, color, false);
 		else
@@ -236,7 +244,8 @@ void application::render()
 				draw_intersect(point, color);
 		}
 
-		_rays_cast += points.size();
+		_rays_cast += count;
+		_rays_drawn += points.size();
 	}
 
 	if (_trace_mouse)
@@ -250,16 +259,22 @@ void application::render()
 		//draw_field(len(end - src));
 
 		_rays_cast++;
+		_rays_drawn++;
 	}
 
 	if (_trace_around)
 	{
+		const auto& result = _src->closet_collision();
+		auto closest = result.first;
+		auto count = result.second;
 
-		auto closest = _src->closet_collision();
 		sf::Color color = sf::Color::Green;
 		draw_line(_src->get_pos(), closest, color);
 		draw_intersect(closest, color);
 		draw_field(len(_src->get_pos() - closest), color);
+
+		_rays_cast += count;
+		_rays_drawn++;
 	}
 
 	if (_show_corners)
@@ -290,7 +305,7 @@ application::application(world* world, source* source, const std::string& title)
 	_field = sf::CircleShape(_world->width(), 100);
 	_field.setFillColor(sf::Color::Transparent);
 	_field.setOutlineColor(sf::Color::Magenta);
-	_field.setOutlineThickness(-4.f);
+	_field.setOutlineThickness(-2.f);
 
 	_intersect = sf::CircleShape(_tile_dim / 4.f);
 	_intersect.setFillColor(sf::Color::Transparent);
@@ -300,6 +315,7 @@ application::application(world* world, source* source, const std::string& title)
 	_corner.setFillColor(sf::Color::White);
 
 	_window = new sf::RenderWindow(sf::VideoMode(_world->width() * _tile_dim, _world->height() * _tile_dim), _title);
+	//_window->setVerticalSyncEnabled(true);
 }
 
 application::~application()
@@ -314,15 +330,18 @@ void application::run()
 
 	while (_window->isOpen())
 	{
-		_rays_cast = 0;
+		_rays_cast = _rays_drawn = 0;
 		auto then = clock.now();
 
-		handle_events(elapsed / 1000.f);
+		handle_events(elapsed / 1000000.f);
 		render();
 
-		elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - then).count();
-		uint64_t fps = 1000 / elapsed;
-		std::string log = "[FPS: " + std::to_string(fps) + "] [Rays cast: " + std::to_string(_rays_cast) + "]";
+		elapsed = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - then).count();
+		uint64_t fps = 1000000 / elapsed;
+		std::string log = "[FPS: " + std::to_string(fps)
+			+ "] [Rays cast: " + std::to_string(_rays_cast)
+			+ "] [Rays drawn: " + std::to_string(_rays_drawn)
+			+ "]";
 		_window->setTitle(_title + " " + log);
 	}
 }

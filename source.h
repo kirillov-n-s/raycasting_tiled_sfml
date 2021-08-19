@@ -34,7 +34,7 @@ public:
 	void set_precision(uint8_t val);
 
 	vec2f ray_cast_dda(const vec2f& dir) const;
-	std::vector<vec2f> line_of_sight() const;
-	std::vector<vec2f> field_of_view(const vec2f& dir) const;
-	vec2f closet_collision() const;
+	std::pair<std::vector<vec2f>, uint32_t> line_of_sight() const;
+	std::pair<std::vector<vec2f>, uint32_t> field_of_view(const vec2f& dir) const;
+	std::pair<vec2f, uint32_t> closet_collision() const;
 };

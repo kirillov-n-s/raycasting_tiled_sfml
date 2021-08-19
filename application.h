@@ -42,7 +42,7 @@ class application
 		vec2f(-1.f, 0.f)
 	};
 
-	bool _show_corners = true;
+	bool _show_corners = false;
 	bool _trace_mouse = false;
 	bool _trace_around = false;
 	bool _trace_light = false;
@@ -51,6 +51,7 @@ class application
 	bool _trace_fov_rays = false;
 
 	uint32_t _rays_cast = 0;
+	uint32_t _rays_drawn = 0;
 
 	void handle_events(float elapsed);
 	void render();
