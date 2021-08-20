@@ -6,8 +6,6 @@
 #include <SFML/Graphics.hpp>
 #include "source.h"
 
-using namespace std::chrono_literals;
-
 class application
 {
 	const std::vector<vec2f> DIRS =

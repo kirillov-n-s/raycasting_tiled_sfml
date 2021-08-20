@@ -40,5 +40,4 @@ public:
 	std::pair<std::vector<vec2f>, uint32_t> light_area() const;
 	std::pair<std::vector<vec2f>, uint32_t> field_of_view(const vec2f& dir) const;
 	std::pair<vec2f, uint32_t> closest_object() const;
-	//std::pair<std::vector<vec2f>, uint32_t> fog_of_war(const vec2f& dir);
 };

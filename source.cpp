@@ -281,29 +281,3 @@ std::pair<vec2f, uint32_t> source::closest_object() const
 
 	return std::make_pair(closest, count);
 }
-
-//std::pair<std::vector<vec2f>, uint32_t> source::fog_of_war(const vec2f& dir)
-//{
-//	auto range = _range;
-//	_range = len(closest_object().first - _pos);
-//	_world->reset_visible();
-//
-//	const auto& data1 = scan_around();
-//	_range = range;
-//	const auto& data2 = field_of_view(dir);
-//	auto around = data1.first;
-//	auto fov = data2.first;
-//	auto count = data1.second + data2.second;
-//
-//	auto insert_at = std::find_if(around.begin(), around.end(),
-//		[this, dir](const auto& val)
-//		{
-//			auto vdir = norm(val - _pos);
-//			auto diff = acosf(dot(norm(dir), vdir));
-//			return diff < _fov;
-//		});
-//	
-//	std::copy(fov.begin(), fov.end(), insert_at);
-//
-//	return std::make_pair(around, count);
-//}
