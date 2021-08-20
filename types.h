@@ -29,5 +29,6 @@ enum mode
 	fov,
 	fov_rays,
 
-	around
+	closest,
+	fog_of_war
 };

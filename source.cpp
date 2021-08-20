@@ -14,6 +14,31 @@ void source::init()
 	_precision = _precision_min;
 }
 
+std::pair<std::vector<vec2f>, uint32_t> source::scan_around() const
+{
+	int n = ceilf(2.f * PI / _precision);
+	std::vector<vec2f> rays(n);
+
+	for (int i = 0; i < n; i++)
+	{
+		auto angle = _precision * i;
+		auto dir = vec2f(cosf(angle), sinf(angle));
+		rays[i] = ray_cast_dda(dir);
+	}
+
+	auto it = std::unique(rays.begin(), rays.end(),
+		[](const auto& lhs, const auto& rhs)
+		{
+			return fabs(lhs.x - rhs.x) < 1.f && fabs(lhs.y - rhs.y) < 1.f;
+		});
+
+	if (it != rays.end())
+		rays.erase(it, rays.end());
+
+	return std::make_pair(rays, n);
+}
+
+//public interface
 source::source(tileworld* world)
 	: _world(world)
 {
@@ -133,7 +158,7 @@ vec2f source::ray_cast_dda(const vec2f& dir) const
 }
 
 //cast light & shadows
-std::pair<std::vector<vec2f>, uint32_t> source::line_of_sight() const
+std::pair<std::vector<vec2f>, uint32_t> source::light_area() const
 {
 	std::vector<vec2f> rays;
 	auto corners = _world->get_corners();
@@ -242,17 +267,11 @@ std::pair<std::vector<vec2f>, uint32_t> source::field_of_view(const vec2f& dir) 
 	return std::make_pair(rays, count);
 }
 
-std::pair<vec2f, uint32_t> source::closest_collision() const
+std::pair<vec2f, uint32_t> source::closest_object() const
 {
-	int n = ceilf(2.f * PI / _precision);
-	std::vector<vec2f> rays(n);
-
-	for (int i = 0; i < n; i++)
-	{
-		auto angle = _precision * i;
-		auto dir = vec2f(cosf(angle), sinf(angle));
-		rays[i] = ray_cast_dda(dir);
-	}
+	const auto& data = scan_around();
+	const auto& rays = data.first;
+	auto count = data.second;
 
 	auto closest = *std::min_element(rays.begin(), rays.end(),
 		[this](const auto& lhs, const auto& rhs)
@@ -260,5 +279,31 @@ std::pair<vec2f, uint32_t> source::closest_collision() const
 			return len_sqr(lhs - _pos) < len_sqr(rhs - _pos);
 		});
 
-	return std::make_pair(closest, n);
+	return std::make_pair(closest, count);
 }
+
+//std::pair<std::vector<vec2f>, uint32_t> source::fog_of_war(const vec2f& dir)
+//{
+//	auto range = _range;
+//	_range = len(closest_object().first - _pos);
+//	_world->reset_visible();
+//
+//	const auto& data1 = scan_around();
+//	_range = range;
+//	const auto& data2 = field_of_view(dir);
+//	auto around = data1.first;
+//	auto fov = data2.first;
+//	auto count = data1.second + data2.second;
+//
+//	auto insert_at = std::find_if(around.begin(), around.end(),
+//		[this, dir](const auto& val)
+//		{
+//			auto vdir = norm(val - _pos);
+//			auto diff = acosf(dot(norm(dir), vdir));
+//			return diff < _fov;
+//		});
+//	
+//	std::copy(fov.begin(), fov.end(), insert_at);
+//
+//	return std::make_pair(around, count);
+//}

@@ -11,7 +11,7 @@ void application::draw_tile(uint32_t x, uint32_t y)
 {
 	_tile.setPosition(vec2f(x * _tile_dim, y * _tile_dim));
 
-	if (_mode == fov && !_world->is_visible(x, y))
+	if (_mode == fog_of_war && !_world->is_visible(x, y))
 		return;
 
 	if (_world->is_solid(x, y))
@@ -171,7 +171,7 @@ void application::handle_events()
 				_world->clear();
 				break;
 			case sf::Keyboard::Q:
-				toggle_mode(around);
+				toggle_mode(closest);
 				break;
 			case sf::Keyboard::E:
 				_show_corners ^= true;
@@ -187,6 +187,9 @@ void application::handle_events()
 				break;
 			case sf::Keyboard::G:
 				toggle_mode(fov);
+				break;
+			case sf::Keyboard::V:
+				toggle_mode(fog_of_war);
 				break;
 
 			case sf::Keyboard::Up:
@@ -269,16 +272,17 @@ void application::update()
 	case light:
 	case light_rays:
 		_src->mod_range(INFINITY);
-		_data = _src->line_of_sight();
+		_data = _src->light_area();
 		break;
 	case fov:
 	case fov_rays:
+	case fog_of_war:
 		_world->reset_visible();
 		_data = _src->field_of_view(vec2f(sf::Mouse::getPosition(*_window)) - _src->get_pos());
 		break;
-	case around:
+	case closest:
 		_src->mod_range(INFINITY);
-		_data = _src->closest_collision();
+		_data = _src->closest_object();
 		break;
 	}
 }
@@ -303,8 +307,11 @@ void application::render()
 	case fov_rays:
 		render_shadows(true, false, { 128, 160, 255, 192 });
 		break;
-	case around:
+	case closest:
 		trace_closest_collision();
+		break;
+	case fog_of_war:
+		render_shadows(false, false, { 192, 255, 0, 192 });
 		break;
 	}
 
@@ -330,6 +337,7 @@ application::application(tileworld* world, source* source, const std::string& ti
 	_source.setOutlineColor(sf::Color::White);
 	_source.setOutlineThickness(_tile_dim / -12.f);
 
+	_field.setPointCount(100);
 	_field.setFillColor(sf::Color::Transparent);
 	_field.setOutlineThickness(-2.f);
 

@@ -20,6 +20,8 @@ class source
 
 	void init();
 
+	std::pair<std::vector<vec2f>, uint32_t> scan_around() const;
+
 public:
 	source(tileworld* world);
 	source(tileworld* world, const vec2f& pos);
@@ -35,7 +37,8 @@ public:
 	void set_precision(uint8_t val);
 
 	vec2f ray_cast_dda(const vec2f& dir) const;
-	std::pair<std::vector<vec2f>, uint32_t> line_of_sight() const;
+	std::pair<std::vector<vec2f>, uint32_t> light_area() const;
 	std::pair<std::vector<vec2f>, uint32_t> field_of_view(const vec2f& dir) const;
-	std::pair<vec2f, uint32_t> closest_collision() const;
+	std::pair<vec2f, uint32_t> closest_object() const;
+	//std::pair<std::vector<vec2f>, uint32_t> fog_of_war(const vec2f& dir);
 };
