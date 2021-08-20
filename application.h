@@ -1,6 +1,6 @@
 #pragma once
-#include <thread>
 #include <chrono>
+#include <variant>
 #include <SFML/System.hpp>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
@@ -10,6 +10,14 @@ using namespace std::chrono_literals;
 
 class application
 {
+	const std::vector<vec2f> DIRS =
+	{
+		vec2f(0.f, -1.f),
+		vec2f(1.f, 0.f),
+		vec2f(0.f, 1.f),
+		vec2f(-1.f, 0.f)
+	};
+
 	tileworld* _world;
 	source* _src;
 
@@ -34,26 +42,29 @@ class application
 	void draw_fan(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color, bool connect);
 	void draw_star(const vec2f& center, const std::vector<vec2f>& points, const sf::Color& color);
 
-	const std::vector<vec2f> DIRS =
-	{
-		vec2f(0.f, -1.f),
-		vec2f(1.f, 0.f),
-		vec2f(0.f, 1.f),
-		vec2f(-1.f, 0.f)
-	};
+	void render_layout();
+	void render_shadows(bool rays, bool connect, const sf::Color& color);
+	void trace_closest_collision();
+	void trace_mouse();
+	void show_corners();
 
+	mode _mode = none;
+	void toggle_mode(mode mode);
 	bool _show_corners = false;
 	bool _trace_mouse = false;
-	bool _trace_around = false;
-	bool _trace_light = false;
-	bool _trace_light_rays = false;
-	bool _trace_fov = false;
-	bool _trace_fov_rays = false;
+
+	float _elapsed = 0.f;
+
+	std::variant<
+		std::pair<std::vector<vec2f>, uint32_t>,
+		std::pair<vec2f, uint32_t>
+	> _data;
 
 	uint32_t _rays_cast = 0;
 	uint32_t _rays_drawn = 0;
 
-	void handle_events(float elapsed);
+	void handle_events();
+	void update();
 	void render();
 
 public:

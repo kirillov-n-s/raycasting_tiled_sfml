@@ -2,15 +2,10 @@
 #include <vector>
 #include <algorithm>
 #include "geometry.h"
-#include "utils.h"
+#include "types.h"
 
 class tileworld
 {
-	struct tile
-	{
-		bool solid = false;
-	};
-
 	std::vector<tile> _grid;
 	std::vector<vec2f> _corners;
 
@@ -35,7 +30,11 @@ public:
 	std::vector<vec2f> get_corners() const;
 
 	bool in_bounds(uint32_t x, uint32_t y) const;
-	bool tile_solid(uint32_t x, uint32_t y) const;
-	void toggle_tile(uint32_t x, uint32_t y);
+	bool is_solid(uint32_t x, uint32_t y) const;
+	void toggle_solid(uint32_t x, uint32_t y);
 	void clear();
+
+	bool is_visible(uint32_t x, uint32_t y) const;
+	void set_visible(uint32_t x, uint32_t y);
+	void reset_visible();
 };

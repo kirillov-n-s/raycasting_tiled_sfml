@@ -6,19 +6,22 @@ vec2f application::get_rad_vec(const sf::CircleShape& circle) const
 	return vec2f(rad, rad);
 }
 
-//drawing functions
+//drawing help functions
 void application::draw_tile(uint32_t x, uint32_t y)
 {
 	_tile.setPosition(vec2f(x * _tile_dim, y * _tile_dim));
 
-	if (_world->tile_solid(x, y))
+	if (_mode == fov && !_world->is_visible(x, y))
+		return;
+
+	if (_world->is_solid(x, y))
 	{
 		_tile.setFillColor(sf::Color::Blue);
 		_tile.setOutlineColor(sf::Color::Cyan);
 	}
 	else
 	{
-		_tile.setFillColor(sf::Color::Black);
+		_tile.setFillColor({ 0x01, 0x23, 0x45 });
 		_tile.setOutlineColor(sf::Color(16, 16, 16));
 	}
 
@@ -82,8 +85,75 @@ void application::draw_star(const vec2f& center, const std::vector<vec2f>& point
 	_window->draw(star);
 }
 
-//event handling
-void application::handle_events(float elapsed)
+//rendering help functions
+void application::render_layout()
+{
+	for (int x = 0; x < _world->width(); x++)
+		for (int y = 0; y < _world->height(); y++)
+			draw_tile(x, y);
+}
+
+void application::render_shadows(bool rays, bool connect, const sf::Color& color)
+{
+	const auto& data = std::get<0>(_data);
+	const auto& points = data.first;
+	auto src = _src->get_pos();
+
+	if (!rays)
+		draw_fan(src, points, color, connect);
+	else
+	{
+		draw_star(src, points, color);
+		for (const auto& point : points)
+			draw_intersect(point, color);
+	}
+
+	_rays_cast = data.second;
+	_rays_drawn = points.size();
+}
+
+void application::trace_closest_collision()
+{
+	const auto& data = std::get<1>(_data);
+	auto closest = data.first;
+
+	sf::Color color = sf::Color::Green;
+	draw_line(_src->get_pos(), closest, color);
+	draw_intersect(closest, color);
+	draw_field(len(_src->get_pos() - closest), color);
+
+	_rays_cast = data.second;
+	_rays_drawn = 1;
+}
+
+void application::trace_mouse()
+{
+	auto mouse = vec2f(sf::Mouse::getPosition(*_window));
+	auto src = _src->get_pos();
+	auto end = _src->ray_cast_dda(mouse - src);
+	sf::Color color = sf::Color::Red;
+
+	draw_line(src, end, color);
+	draw_intersect(end, color);
+
+	_rays_cast++;
+	_rays_drawn++;
+}
+
+void application::show_corners()
+{
+	auto corners = _world->get_corners();
+	for (const auto& corner : corners)
+		draw_corner(corner);
+}
+
+void application::toggle_mode(mode mode)
+{
+	_mode = _mode == mode ? none : mode;
+}
+
+//main loop functions
+void application::handle_events()
 {
 	sf::Event event;
 	while (_window->pollEvent(event))
@@ -101,26 +171,22 @@ void application::handle_events(float elapsed)
 				_world->clear();
 				break;
 			case sf::Keyboard::Q:
-				_trace_around ^= true;
+				toggle_mode(around);
 				break;
 			case sf::Keyboard::E:
 				_show_corners ^= true;
 				break;
 			case sf::Keyboard::R:
-				_trace_light_rays ^= true;
-				_trace_light = _trace_fov = _trace_fov_rays = false;
+				toggle_mode(light_rays);
 				break;
 			case sf::Keyboard::F:
-				_trace_light ^= true;
-				_trace_light_rays = _trace_fov = _trace_fov_rays = false;
+				toggle_mode(light);
 				break;
 			case sf::Keyboard::T:
-				_trace_fov_rays ^= true;
-				_trace_fov = _trace_light = _trace_light_rays = false;
+				toggle_mode(fov_rays);
 				break;
 			case sf::Keyboard::G:
-				_trace_fov ^= true;
-				_trace_fov_rays = _trace_light = _trace_light_rays = false;
+				toggle_mode(fov);
 				break;
 
 			case sf::Keyboard::Up:
@@ -145,16 +211,16 @@ void application::handle_events(float elapsed)
 			switch (event.key.code)
 			{
 			case sf::Keyboard::W:
-				_src->move(DIRS[N], elapsed);
+				_src->move(DIRS[N], _elapsed);
 				break;
 			case sf::Keyboard::A:
-				_src->move(DIRS[W], elapsed);
+				_src->move(DIRS[W], _elapsed);
 				break;
 			case sf::Keyboard::S:
-				_src->move(DIRS[S], elapsed);
+				_src->move(DIRS[S], _elapsed);
 				break;
 			case sf::Keyboard::D:
-				_src->move(DIRS[E], elapsed);
+				_src->move(DIRS[E], _elapsed);
 				break;
 
 			case sf::Keyboard::Left:
@@ -174,7 +240,7 @@ void application::handle_events(float elapsed)
 				mouse = vec2u(sf::Mouse::getPosition(*_window)) / _tile_dim;
 				if (mouse.x < 2 || mouse.y < 2 || mouse.x > _world->width() - 3 || mouse.y > _world->height() - 3)
 					continue;
-				_world->toggle_tile(mouse.x, mouse.y);
+				_world->toggle_solid(mouse.x, mouse.y);
 				break;
 			case sf::Mouse::Right:
 				_trace_mouse ^= true;
@@ -196,94 +262,56 @@ void application::handle_events(float elapsed)
 	}
 }
 
-//render
+void application::update()
+{
+	switch (_mode)
+	{
+	case light:
+	case light_rays:
+		_src->mod_range(INFINITY);
+		_data = _src->line_of_sight();
+		break;
+	case fov:
+	case fov_rays:
+		_world->reset_visible();
+		_data = _src->field_of_view(vec2f(sf::Mouse::getPosition(*_window)) - _src->get_pos());
+		break;
+	case around:
+		_src->mod_range(INFINITY);
+		_data = _src->closest_collision();
+		break;
+	}
+}
+
 void application::render()
 {
 	_window->clear();
 
-	for (int x = 0; x < _world->width(); x++)
-		for (int y = 0; y < _world->height(); y++)
-			draw_tile(x, y);
+	render_layout();
 
-	auto src = _src->get_pos();
-
-	if (_trace_light || _trace_light_rays)
+	switch (_mode)
 	{
-		const auto& result = _src->line_of_sight();
-		const auto& points = result.first;
-		auto count = result.second;
-
-		sf::Color color = { 255, 160, 0, 192 };
-		if (_trace_light)
-			draw_fan(src, points, color, true);
-		else
-		{
-			draw_star(src, points, color);
-			for (const auto& point : points)
-				draw_intersect(point, color);
-		}
-
-		_rays_cast += count;
-		_rays_drawn += points.size();
-	}
-	else if (_trace_fov || _trace_fov_rays)
-	{
-		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-
-		const auto& result = _src->field_of_view(mouse - src);
-		const auto& points = result.first;
-		auto count = result.second;
-
-		sf::Color color = { 128, 160, 255, 192 };
-		if (_trace_fov)
-			draw_fan(src, points, color, false);
-		else
-		{
-			draw_star(src, points, color);
-			for (const auto& point : points)
-				draw_intersect(point, color);
-		}
-
-		_rays_cast += count;
-		_rays_drawn += points.size();
+	case light:
+		render_shadows(false, true, { 255, 160, 0, 192 });
+		break;
+	case light_rays:
+		render_shadows(true, true, { 255, 160, 0, 192 });
+		break;
+	case fov:
+		render_shadows(false, false, { 128, 160, 255, 192 });
+		break;
+	case fov_rays:
+		render_shadows(true, false, { 128, 160, 255, 192 });
+		break;
+	case around:
+		trace_closest_collision();
+		break;
 	}
 
 	if (_trace_mouse)
-	{
-		auto mouse = vec2f(sf::Mouse::getPosition(*_window));
-		auto end = _src->ray_cast_dda(mouse - src);
-		sf::Color color = sf::Color::Red;
-
-		draw_line(src, end, color);
-		draw_intersect(end, color);
-		//draw_field(len(end - src));
-
-		_rays_cast++;
-		_rays_drawn++;
-	}
-
-	if (_trace_around)
-	{
-		const auto& result = _src->closet_collision();
-		auto closest = result.first;
-		auto count = result.second;
-
-		sf::Color color = sf::Color::Green;
-		draw_line(_src->get_pos(), closest, color);
-		draw_intersect(closest, color);
-		draw_field(len(_src->get_pos() - closest), color);
-
-		_rays_cast += count;
-		_rays_drawn++;
-	}
-
+		trace_mouse();
 	if (_show_corners)
-	{
-		auto corners = _world->get_corners();
-		for (const auto& corner : corners)
-			draw_corner(corner);
-	}
-
+		show_corners();
 	draw_source();
 
 	_window->display();
@@ -302,9 +330,7 @@ application::application(tileworld* world, source* source, const std::string& ti
 	_source.setOutlineColor(sf::Color::White);
 	_source.setOutlineThickness(_tile_dim / -12.f);
 
-	_field = sf::CircleShape(_world->width(), 100);
 	_field.setFillColor(sf::Color::Transparent);
-	_field.setOutlineColor(sf::Color::Magenta);
 	_field.setOutlineThickness(-2.f);
 
 	_intersect = sf::CircleShape(_tile_dim / 4.f);
@@ -326,22 +352,21 @@ application::~application()
 void application::run()
 {
 	std::chrono::system_clock clock;
-	uint64_t elapsed = 0;
 
 	while (_window->isOpen())
 	{
 		_rays_cast = _rays_drawn = 0;
 		auto then = clock.now();
 
-		handle_events(elapsed / 1000000.f);
+		handle_events();
+		update();
 		render();
 
-		elapsed = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - then).count();
-		uint64_t fps = 1000000 / elapsed;
+		_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(clock.now() - then).count() / 1000000.f;
+		uint64_t fps = 1.f / _elapsed;
 		std::string log = "[FPS: " + std::to_string(fps)
-			+ "] [Rays cast: " + std::to_string(_rays_cast)
-			+ "] [Rays drawn: " + std::to_string(_rays_drawn)
-			+ "]";
+			+ "] [Rays cast: " + std::to_string(_rays_cast) + ", rays drawn: " + std::to_string(_rays_drawn)
+			+ "] [FOV: " + std::to_string((int)(_src->get_fov() / ALPHA)) + " deg, range: " + std::to_string((int)_src->get_range()) + " px]";
 		_window->setTitle(_title + " " + log);
 	}
 }

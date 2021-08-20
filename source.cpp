@@ -32,6 +32,16 @@ vec2f source::get_pos() const
 	return _pos;
 }
 
+float source::get_fov() const
+{
+	return _fov;
+}
+
+float source::get_range() const
+{
+	return _range;
+}
+
 void source::move(const vec2f& dir, float elapsed)
 {
 	auto ndir = norm(dir);
@@ -108,8 +118,15 @@ vec2f source::ray_cast_dda(const vec2f& dir) const
 			dist = ray_len.y,
 			ray_len.y += ray_unit.y;
 
+		/*auto tile = pos / _world->dim();
+		intersect = _world->in_bounds(tile.x, tile.y) && _world->is_solid(tile.x, tile.y);*/
+
 		auto tile = pos / _world->dim();
-		intersect = _world->in_bounds(tile.x, tile.y) && _world->tile_solid(tile.x, tile.y);
+		if (_world->in_bounds(tile.x, tile.y))
+		{
+			intersect = _world->is_solid(tile.x, tile.y);
+			_world->set_visible(tile.x, tile.y);
+		}
 	}
 
 	return start + ndir * dist;
@@ -225,7 +242,7 @@ std::pair<std::vector<vec2f>, uint32_t> source::field_of_view(const vec2f& dir) 
 	return std::make_pair(rays, count);
 }
 
-std::pair<vec2f, uint32_t> source::closet_collision() const
+std::pair<vec2f, uint32_t> source::closest_collision() const
 {
 	int n = ceilf(2.f * PI / _precision);
 	std::vector<vec2f> rays(n);

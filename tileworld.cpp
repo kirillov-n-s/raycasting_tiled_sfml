@@ -1,16 +1,16 @@
-#include "world.h"
+#include "tileworld.h"
 
-tileworld::tile& tileworld::get(uint32_t x, uint32_t y)
+tile& tileworld::get(uint32_t x, uint32_t y)
 {
 	return _grid[y * _width + x];
 }
 
-tileworld::tile tileworld::get(uint32_t x, uint32_t y) const
+tile tileworld::get(uint32_t x, uint32_t y) const
 {
 	return _grid[y * _width + x];
 }
 
-std::vector<tileworld::tile> tileworld::get_neighbors(uint32_t x, uint32_t y)
+std::vector<tile> tileworld::get_neighbors(uint32_t x, uint32_t y)
 {
 	std::vector<tile> neighbors(8);
 
@@ -101,12 +101,12 @@ bool tileworld::in_bounds(uint32_t x, uint32_t y) const
 	return x < _width && y < _height;
 }
 
-bool tileworld::tile_solid(uint32_t x, uint32_t y) const
+bool tileworld::is_solid(uint32_t x, uint32_t y) const
 {
 	return get(x, y).solid;
 }
 
-void tileworld::toggle_tile(uint32_t x, uint32_t y)
+void tileworld::toggle_solid(uint32_t x, uint32_t y)
 {
 	get(x, y).solid ^= true;
 	update_corners();
@@ -118,4 +118,22 @@ void tileworld::clear()
 		for (int x = 2; x < _width - 2; x++)
 			get(x, y).solid = false;
 	update_corners();
+}
+
+//visibility
+bool tileworld::is_visible(uint32_t x, uint32_t y) const
+{
+	return get(x, y).visible;
+}
+
+void tileworld::set_visible(uint32_t x, uint32_t y)
+{
+	get(x, y).visible = true;
+}
+
+void tileworld::reset_visible()
+{
+	for (int y = 0; y < _height; y++)
+		for (int x = 0; x < _width; x++)
+			get(x, y).visible = false;
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "world.h"
+#include "tileworld.h"
 
 class source
 {
@@ -23,9 +23,10 @@ class source
 public:
 	source(tileworld* world);
 	source(tileworld* world, const vec2f& pos);
-	//source(tileworld* world, const vec2f& pos, float spd, float rng, float fov);
 
 	vec2f get_pos() const;
+	float get_fov() const;
+	float get_range() const;
 
 	void move(const vec2f& dir, float elapsed);
 
@@ -36,5 +37,5 @@ public:
 	vec2f ray_cast_dda(const vec2f& dir) const;
 	std::pair<std::vector<vec2f>, uint32_t> line_of_sight() const;
 	std::pair<std::vector<vec2f>, uint32_t> field_of_view(const vec2f& dir) const;
-	std::pair<vec2f, uint32_t> closet_collision() const;
+	std::pair<vec2f, uint32_t> closest_collision() const;
 };
