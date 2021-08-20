@@ -3,7 +3,7 @@
 
 class source
 {
-	world* _world;
+	tileworld* _world;
 
 	vec2f _pos;
 	float _speed;
@@ -21,9 +21,9 @@ class source
 	void init();
 
 public:
-	source(world* world);
-	source(world* world, const vec2f& pos);
-	//source(world* world, const vec2f& pos, float spd, float rng, float fov);
+	source(tileworld* world);
+	source(tileworld* world, const vec2f& pos);
+	//source(tileworld* world, const vec2f& pos, float spd, float rng, float fov);
 
 	vec2f get_pos() const;
 

@@ -10,7 +10,7 @@ using namespace std::chrono_literals;
 
 class application
 {
-	world* _world;
+	tileworld* _world;
 	source* _src;
 
 	std::string _title;
@@ -57,7 +57,7 @@ class application
 	void render();
 
 public:
-	application(world* world, source* source, const std::string& title = "");
+	application(tileworld* world, source* source, const std::string& title = "");
 	~application();
 
 	void run();

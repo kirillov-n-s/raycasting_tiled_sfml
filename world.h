@@ -4,7 +4,7 @@
 #include "geometry.h"
 #include "utils.h"
 
-class world
+class tileworld
 {
 	struct tile
 	{
@@ -26,8 +26,8 @@ class world
 	void update_corners();
 
 public:
-	world(uint32_t width, uint32_t height, uint32_t dimension);
-	~world();
+	tileworld(uint32_t width, uint32_t height, uint32_t dimension);
+	~tileworld();
 
 	uint32_t width() const;
 	uint32_t height() const;

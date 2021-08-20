@@ -14,13 +14,13 @@ void source::init()
 	_precision = _precision_min;
 }
 
-source::source(world* world)
+source::source(tileworld* world)
 	: _world(world)
 {
 	init();
 }
 
-source::source(world* world, const vec2f& pos)
+source::source(tileworld* world, const vec2f& pos)
 	: _world(world)
 {
 	init();

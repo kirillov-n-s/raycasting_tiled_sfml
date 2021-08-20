@@ -1,16 +1,16 @@
 #include "world.h"
 
-world::tile& world::get(uint32_t x, uint32_t y)
+tileworld::tile& tileworld::get(uint32_t x, uint32_t y)
 {
 	return _grid[y * _width + x];
 }
 
-world::tile world::get(uint32_t x, uint32_t y) const
+tileworld::tile tileworld::get(uint32_t x, uint32_t y) const
 {
 	return _grid[y * _width + x];
 }
 
-std::vector<world::tile> world::get_neighbors(uint32_t x, uint32_t y)
+std::vector<tileworld::tile> tileworld::get_neighbors(uint32_t x, uint32_t y)
 {
 	std::vector<tile> neighbors(8);
 
@@ -28,7 +28,7 @@ std::vector<world::tile> world::get_neighbors(uint32_t x, uint32_t y)
 }
 
 //update corners of tile-formed polygons
-void world::update_corners()
+void tileworld::update_corners()
 {
 	_corners.clear();
 
@@ -57,7 +57,7 @@ void world::update_corners()
 }
 
 //public interface
-world::world(uint32_t width, uint32_t height, uint32_t dimension)
+tileworld::tileworld(uint32_t width, uint32_t height, uint32_t dimension)
 	: _width(width), _height(height), _dim(dimension)
 {
 	_size = _width * _height;
@@ -71,48 +71,48 @@ world::world(uint32_t width, uint32_t height, uint32_t dimension)
 	update_corners();
 }
 
-world::~world() {}
+tileworld::~tileworld() {}
 
 //properties
-uint32_t world::width() const
+uint32_t tileworld::width() const
 {
 	return _width;
 }
 
-uint32_t world::height() const
+uint32_t tileworld::height() const
 {
 	return _height;
 }
 
-uint32_t world::dim() const
+uint32_t tileworld::dim() const
 {
 	return _dim;
 }
 
 //world features
-std::vector<vec2f> world::get_corners() const
+std::vector<vec2f> tileworld::get_corners() const
 {
 	return _corners;
 }
 
 //tile data & manip
-bool world::in_bounds(uint32_t x, uint32_t y) const
+bool tileworld::in_bounds(uint32_t x, uint32_t y) const
 {
 	return x < _width && y < _height;
 }
 
-bool world::tile_solid(uint32_t x, uint32_t y) const
+bool tileworld::tile_solid(uint32_t x, uint32_t y) const
 {
 	return get(x, y).solid;
 }
 
-void world::toggle_tile(uint32_t x, uint32_t y)
+void tileworld::toggle_tile(uint32_t x, uint32_t y)
 {
 	get(x, y).solid ^= true;
 	update_corners();
 }
 
-void world::clear()
+void tileworld::clear()
 {
 	for (int y = 2; y < _height - 2; y++)
 		for (int x = 2; x < _width - 2; x++)

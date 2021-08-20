@@ -290,7 +290,7 @@ void application::render()
 }
 
 //public interface
-application::application(world* world, source* source, const std::string& title)
+application::application(tileworld* world, source* source, const std::string& title)
 	: _world(world), _src(source), _title(title)
 {
 	_tile_dim = _world->dim();
