@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <algorithm>
-#include "geometry.h"
+#include "vecops.h"
 #include "types.h"
 
 class tileworld

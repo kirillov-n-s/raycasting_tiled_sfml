@@ -1,4 +1,5 @@
 #pragma once
+#include "trig.h"
 #include "tileworld.h"
 
 class source

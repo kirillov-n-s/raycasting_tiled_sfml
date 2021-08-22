@@ -2,7 +2,7 @@
 
 int main()
 {
-	auto tw = new tileworld(80, 45, 32);
+	auto tw = new tileworld(160, 90, 20);
 	auto src = new source(tw);
 	application app(tw, src, "Raycasting");
 	app.run();

@@ -44,5 +44,14 @@
     <ClInclude Include="types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="trig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vecops.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sgn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
